@@ -7,7 +7,7 @@
 
   <!-- Featured Hero Section (Displayed on default catalog view) -->
   {% if featured_item and not current_search and not current_genre and not current_type %}
-    <section class="hero-banner" style="background-image: url('{{ featured_item.safe_poster_url }}');">
+    <section class="hero-banner" style="background-image: url('{{ featured_item.safe_backdrop_url }}');">
       <div class="hero-overlay">
         <div class="hero-content">
           <div class="hero-badges">

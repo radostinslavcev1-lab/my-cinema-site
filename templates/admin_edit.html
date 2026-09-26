@@ -21,7 +21,7 @@
   </div>
 
   <div class="admin-card">
-    <form method="POST" action="{{ url_for('admin_edit_media', id=item.id) }}">
+    <form method="POST" action="{{ url_for('admin_edit_media', id=item.id) }}" enctype="multipart/form-data">
       <div class="form-grid">
         
         <div class="form-group" style="grid-column: span 2;">
@@ -72,15 +72,61 @@
           >
         </div>
 
+        <!-- Vertical Poster -->
         <div class="form-group" style="grid-column: span 2;">
-          <label for="poster_url">URL към плакат / постер</label>
-          <input 
-            type="url" 
-            id="poster_url" 
-            name="poster_url" 
-            class="form-control" 
-            value="{{ item.poster_url if item.poster_url else '' }}"
-          >
+          <label for="poster_url">Вертикален плакат / постер (URL или нов файл)</label>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input 
+              type="url" 
+              id="poster_url" 
+              name="poster_url" 
+              class="form-control" 
+              style="flex: 1; min-width: 220px;"
+              value="{{ item.poster_url if item.poster_url else '' }}"
+            >
+            <span style="color: var(--text-muted); font-size: 0.85rem;">ИЛИ качи нов:</span>
+            <input 
+              type="file" 
+              id="poster_file" 
+              name="poster_file" 
+              class="form-control" 
+              style="max-width: 220px; font-size: 0.8rem;"
+              accept="image/*"
+            >
+          </div>
+        </div>
+
+        <!-- Wide Hero Banner / Backdrop -->
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="backdrop_url">Широк Hero банер / Backdrop (16:9 изображение за началната страница)</label>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input 
+              type="url" 
+              id="backdrop_url" 
+              name="backdrop_url" 
+              class="form-control" 
+              style="flex: 1; min-width: 220px;"
+              placeholder="https://... линк към широк банер"
+              value="{{ item.backdrop_url if item.backdrop_url else '' }}"
+            >
+            <span style="color: var(--text-muted); font-size: 0.85rem;">ИЛИ качи нов:</span>
+            <input 
+              type="file" 
+              id="backdrop_file" 
+              name="backdrop_file" 
+              class="form-control" 
+              style="max-width: 220px; font-size: 0.8rem;"
+              accept="image/*"
+            >
+          </div>
+        </div>
+
+        <!-- Is Featured on Hero Banner Checkbox -->
+        <div class="form-group full-width" style="padding: 10px 14px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: var(--radius-sm);">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-primary); margin-bottom: 0;">
+            <input type="checkbox" name="is_featured" value="1" {% if item.is_featured %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
+            <span>⭐ <strong>Постави като водещо заглавие (Hero банер) на началната страница</strong></span>
+          </label>
         </div>
 
         {% if item.media_type == 'movie' %}

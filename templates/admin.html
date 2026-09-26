@@ -157,19 +157,63 @@
           >
         </div>
 
-        <!-- Poster URL -->
+        <!-- Poster URL or File -->
         <div class="form-group" style="grid-column: span 2;">
-          <label for="poster_url">URL към плакат / постер</label>
-          <input 
-            type="url" 
-            id="poster_url" 
-            name="poster_url" 
-            class="form-control" 
-            placeholder="https://image.tmdb.org/t/p/w500/... или пряк линк към .jpg/.png"
-          >
+          <label for="poster_url">Вертикален плакат / постер (2:3 изображение за карти)</label>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input 
+              type="url" 
+              id="poster_url" 
+              name="poster_url" 
+              class="form-control" 
+              style="flex: 1; min-width: 220px;"
+              placeholder="https://image.tmdb.org/t/p/w500/... или линк към постер"
+            >
+            <span style="color: var(--text-muted); font-size: 0.85rem;">ИЛИ файл:</span>
+            <input 
+              type="file" 
+              id="poster_file" 
+              name="poster_file" 
+              class="form-control" 
+              style="max-width: 220px; font-size: 0.8rem;"
+              accept="image/*"
+            >
+          </div>
+        </div>
+
+        <!-- Wide Hero Banner / Backdrop URL or File -->
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="backdrop_url">Широк Hero банер / Backdrop (16:9 хоризонтално изображение за началната страница)</label>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input 
+              type="url" 
+              id="backdrop_url" 
+              name="backdrop_url" 
+              class="form-control" 
+              style="flex: 1; min-width: 220px;"
+              placeholder="https://... линк към широк тапет/банер"
+            >
+            <span style="color: var(--text-muted); font-size: 0.85rem;">ИЛИ файл:</span>
+            <input 
+              type="file" 
+              id="backdrop_file" 
+              name="backdrop_file" 
+              class="form-control" 
+              style="max-width: 220px; font-size: 0.8rem;"
+              accept="image/*"
+            >
+          </div>
           <small style="color: var(--text-muted); font-size: 0.75rem;">
-            Може да ползвате постери от TMDB, IMDb или друг публичен хостинг за изображения.
+            Това изображение се показва като огромен кино фон на Hero банера най-горе на сайта.
           </small>
+        </div>
+
+        <!-- Is Featured on Hero Banner Checkbox -->
+        <div class="form-group full-width" style="padding: 10px 14px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: var(--radius-sm);">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text-primary); margin-bottom: 0;">
+            <input type="checkbox" name="is_featured" value="1" style="width: 18px; height: 18px; accent-color: var(--accent-gold);">
+            <span>⭐ <strong>Постави като водещо заглавие (Hero банер) на началната страница</strong></span>
+          </label>
         </div>
 
         <!-- Description -->
@@ -277,9 +321,16 @@
                     onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
                   >
                   <div>
-                    <strong style="color: var(--text-primary); font-size: 0.95rem; display: block;">
-                      {{ item.title }}
-                    </strong>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <strong style="color: var(--text-primary); font-size: 0.95rem;">
+                        {{ item.title }}
+                      </strong>
+                      {% if item.is_featured %}
+                        <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-gold); border: 1px solid rgba(245, 158, 11, 0.5); font-size: 0.65rem; padding: 1px 5px;">
+                          ⭐ Hero банер
+                        </span>
+                      {% endif %}
+                    </div>
                     <small style="color: var(--text-muted); font-size: 0.75rem;">
                       Добавен: {{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '—' }}
                     </small>
@@ -317,6 +368,13 @@
 
               <td>
                 <div class="table-actions" style="justify-content: flex-end;">
+                  {% if not item.is_featured %}
+                    <form method="POST" action="{{ url_for('admin_toggle_featured', id=item.id) }}" style="display: inline;">
+                      <button type="submit" class="btn btn-secondary btn-sm" title="Направи това заглавие водещ Hero банер на началната страница" style="color: var(--accent-gold); padding: 5px 8px;">
+                        ⭐
+                      </button>
+                    </form>
+                  {% endif %}
                   <a href="{{ url_for('watch', id=item.id) }}" class="btn btn-secondary btn-sm" title="Гледай в каталога" target="_blank">
                     👁️
                   </a>

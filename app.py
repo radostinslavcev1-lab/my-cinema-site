@@ -43,8 +43,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH_MB', 5000)) * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# Allowed video extensions
+# Allowed video and image extensions
 ALLOWED_EXTENSIONS = {'mp4', 'mkv', 'avi', 'mov', 'webm', 'flv', 'm4v'}
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 
 # Streamtape credentials
 STREAMTAPE_LOGIN = os.environ.get('STREAMTAPE_LOGIN', '').strip()
@@ -64,6 +65,21 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def allowed_image(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_uploaded_image(file_storage, folder_name='banners'):
+    """Saves an uploaded image locally and returns its public URL path."""
+    if not file_storage or not file_storage.filename or not allowed_image(file_storage.filename):
+        return None
+    safe_name = f"{int(datetime.now().timestamp())}_{secure_filename(file_storage.filename)}"
+    target_dir = os.path.join(app.root_path, 'static', 'uploads', folder_name)
+    os.makedirs(target_dir, exist_ok=True)
+    file_storage.save(os.path.join(target_dir, safe_name))
+    return url_for('static', filename=f'uploads/{folder_name}/{safe_name}')
 
 
 def login_required(f):
@@ -150,9 +166,12 @@ def index():
     # Pick a featured item for the hero section
     featured_item = None
     if not search_query and not genre_filter and not type_filter and items:
-        # Choose the first item or the highest-rated item with a poster
-        featured_candidates = [i for i in items if i.poster_url]
-        featured_item = featured_candidates[0] if featured_candidates else items[0]
+        # 1. First look for an item explicitly marked as is_featured
+        featured_item = MediaItem.query.filter_by(is_featured=True).first()
+        if not featured_item:
+            # 2. Otherwise pick first item with backdrop or poster
+            featured_candidates = [i for i in items if i.backdrop_url or i.poster_url]
+            featured_item = featured_candidates[0] if featured_candidates else items[0]
 
     return render_template(
         'index.html',
@@ -459,6 +478,23 @@ def admin_add_media():
             flash('За филм е необходимо да въведете валиден Streamtape ID или линк!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
+    # Handle image file uploads
+    backdrop_url = request.form.get('backdrop_url', '').strip()
+    is_featured = bool(request.form.get('is_featured'))
+
+    if 'backdrop_file' in request.files and request.files['backdrop_file'].filename:
+        uploaded_backdrop = save_uploaded_image(request.files['backdrop_file'], 'banners')
+        if uploaded_backdrop:
+            backdrop_url = uploaded_backdrop
+
+    if 'poster_file' in request.files and request.files['poster_file'].filename:
+        uploaded_poster = save_uploaded_image(request.files['poster_file'], 'posters')
+        if uploaded_poster:
+            poster_url = uploaded_poster
+
+    if is_featured:
+        MediaItem.query.update({MediaItem.is_featured: False})
+
     # Create MediaItem record
     new_media = MediaItem(
         title=title,
@@ -467,6 +503,8 @@ def admin_add_media():
         genre=genre,
         rating=rating,
         poster_url=poster_url,
+        backdrop_url=backdrop_url,
+        is_featured=is_featured,
         media_type=media_type,
         streamtape_id=streamtape_id if media_type == 'movie' else None
     )
@@ -506,6 +544,26 @@ def admin_edit_media(id):
         item.description = request.form.get('description', '').strip()
         item.genre = request.form.get('genre', '').strip()
         item.poster_url = request.form.get('poster_url', '').strip()
+        item.backdrop_url = request.form.get('backdrop_url', '').strip()
+
+        # Handle image file uploads
+        if 'backdrop_file' in request.files and request.files['backdrop_file'].filename:
+            uploaded_backdrop = save_uploaded_image(request.files['backdrop_file'], 'banners')
+            if uploaded_backdrop:
+                item.backdrop_url = uploaded_backdrop
+
+        if 'poster_file' in request.files and request.files['poster_file'].filename:
+            uploaded_poster = save_uploaded_image(request.files['poster_file'], 'posters')
+            if uploaded_poster:
+                item.poster_url = uploaded_poster
+
+        # Update is_featured flag
+        is_featured = bool(request.form.get('is_featured'))
+        if is_featured:
+            MediaItem.query.update({MediaItem.is_featured: False})
+            item.is_featured = True
+        else:
+            item.is_featured = False
 
         # Update year
         try:
@@ -529,6 +587,19 @@ def admin_edit_media(id):
         return redirect(url_for('admin_dashboard'))
 
     return render_template('admin_edit.html', item=item)
+
+
+@app.route('/admin/featured/<int:id>', methods=['POST'])
+@login_required
+def admin_toggle_featured(id):
+    """Sets the selected movie/series as the Hero Banner on the home page."""
+    item = MediaItem.query.get_or_404(id)
+    # Clear any previous featured item
+    MediaItem.query.update({MediaItem.is_featured: False})
+    item.is_featured = True
+    db.session.commit()
+    flash(f"Заглавието „{item.title}“ беше избрано за водещ Hero банер на началната страница!", 'success')
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/delete/<int:id>', methods=['POST'])
@@ -696,13 +767,24 @@ create_tables()
 
 @app.before_request
 def ensure_db_ready():
-    """Ensure database connection is ready on first request."""
+    """Ensure database connection is ready on first request and new columns exist."""
     if not getattr(app, '_db_initialized', False):
         try:
             db.create_all()
+            with db.engine.connect() as conn:
+                try:
+                    conn.execute(db.text("ALTER TABLE media_items ADD COLUMN backdrop_url VARCHAR(500)"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(db.text("ALTER TABLE media_items ADD COLUMN is_featured BOOLEAN DEFAULT FALSE"))
+                    conn.commit()
+                except Exception:
+                    pass
             app._db_initialized = True
-        except Exception:
-            pass
+        except Exception as e:
+            app.logger.warning(f"DB ensure warning: {e}")
 
 
 if __name__ == '__main__':

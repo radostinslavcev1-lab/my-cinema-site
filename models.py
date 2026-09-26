@@ -18,6 +18,8 @@ class MediaItem(db.Model):
     genre = db.Column(db.String(150), nullable=True, index=True)
     rating = db.Column(db.Float, nullable=True, default=7.0)
     poster_url = db.Column(db.String(500), nullable=True)
+    backdrop_url = db.Column(db.String(500), nullable=True)  # Wide 16:9 banner image for Hero section
+    is_featured = db.Column(db.Boolean, default=False, index=True)  # Pinned to Hero Banner
     media_type = db.Column(db.String(20), nullable=False, default='movie', index=True)  # 'movie' or 'series'
     streamtape_id = db.Column(db.String(100), nullable=True)  # Used when media_type == 'movie'
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -44,6 +46,18 @@ class MediaItem(db.Model):
         if self.poster_url and self.poster_url.strip():
             return self.poster_url.strip()
         return "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80"
+
+    @property
+    def safe_backdrop_url(self):
+        """
+        Returns the wide horizontal 16:9 banner URL for Hero section.
+        Falls back to poster_url or a cinema wallpaper.
+        """
+        if self.backdrop_url and self.backdrop_url.strip():
+            return self.backdrop_url.strip()
+        if self.poster_url and self.poster_url.strip():
+            return self.poster_url.strip()
+        return "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1920&q=80"
 
     @property
     def genres_list(self):
