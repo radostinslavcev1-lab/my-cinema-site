@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Flask & SQLite
+instance/
+*.db
+*.sqlite3
+
+# Environment Variables
+.env
+
+# Temp files
+*.log
+temp_uploads/
+cinema_streamtape_uploads/

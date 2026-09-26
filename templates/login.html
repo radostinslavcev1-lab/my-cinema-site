@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Вход в административния панел - CINEMAX{% endblock %}
+
+{% block content %}
+<div class="container" style="display: flex; align-items: center; justify-content: center; min-height: calc(80vh - 120px); padding: 40px 20px;">
+  <div style="background-color: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 40px; width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);">
+    
+    <div style="text-align: center; margin-bottom: 28px;">
+      <div class="brand-logo-icon" style="width: 48px; height: 48px; font-size: 1.5rem; margin: 0 auto 16px auto;">
+        ▶
+      </div>
+      <h2 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 8px;">Вход за администратор</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        Въведете вашите данни за управление на съдържанието
+      </p>
+    </div>
+
+    <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label for="username">Потребителско име</label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          class="form-control" 
+          placeholder="admin" 
+          required 
+          autofocus
+        >
+      </div>
+
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label for="password">Парола</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          class="form-control" 
+          placeholder="••••••••" 
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-bottom: 18px;">
+        Влез в панела
+      </button>
+
+      <div style="padding: 12px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border-light); font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+        💡 По подразбиране: <code>admin</code> / <code>admin123</code> (конфигурират се в <code>.env</code>).
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}

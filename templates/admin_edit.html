@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Редактиране: {{ item.title }} - CINEMAX{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 30px; padding-bottom: 60px; max-width: 900px;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+    <div>
+      <h1 style="font-size: 1.8rem; font-weight: 800;">✏️ Редактиране на заглавие</h1>
+      <p style="color: var(--text-muted);">{{ item.title }} ({{ 'Сериал' if item.media_type == 'series' else 'Филм' }})</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <a href="{{ url_for('watch', id=item.id) }}" class="btn btn-secondary btn-sm" target="_blank">
+        👁️ Преглед в сайта
+      </a>
+      <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-sm">
+        ← Назад към таблото
+      </a>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <form method="POST" action="{{ url_for('admin_edit_media', id=item.id) }}">
+      <div class="form-grid">
+        
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="title">Заглавие *</label>
+          <input 
+            type="text" 
+            id="title" 
+            name="title" 
+            class="form-control" 
+            value="{{ item.title }}" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="release_year">Година</label>
+          <input 
+            type="number" 
+            id="release_year" 
+            name="release_year" 
+            class="form-control" 
+            value="{{ item.release_year if item.release_year else '' }}"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="rating">Рейтинг</label>
+          <input 
+            type="number" 
+            step="0.1" 
+            min="0" 
+            max="10" 
+            id="rating" 
+            name="rating" 
+            class="form-control" 
+            value="{{ item.rating if item.rating else '' }}"
+          >
+        </div>
+
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="genre">Жанрове</label>
+          <input 
+            type="text" 
+            id="genre" 
+            name="genre" 
+            class="form-control" 
+            value="{{ item.genre if item.genre else '' }}"
+          >
+        </div>
+
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="poster_url">URL към плакат / постер</label>
+          <input 
+            type="url" 
+            id="poster_url" 
+            name="poster_url" 
+            class="form-control" 
+            value="{{ item.poster_url if item.poster_url else '' }}"
+          >
+        </div>
+
+        {% if item.media_type == 'movie' %}
+          <div class="form-group" style="grid-column: span 2;">
+            <label for="streamtape_id">Streamtape Video ID или линк</label>
+            <input 
+              type="text" 
+              id="streamtape_id" 
+              name="streamtape_id" 
+              class="form-control" 
+              value="{{ item.streamtape_id if item.streamtape_id else '' }}"
+            >
+          </div>
+        {% else %}
+          <div class="form-group" style="grid-column: span 2;">
+            <div style="padding: 16px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <strong>Това заглавие е сериал</strong>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
+                  Видеата се управляват поотделно за всеки епизод (общо {{ item.episode_count }} налични).
+                </p>
+              </div>
+              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-primary btn-sm">
+                📺 Управление на епизодите
+              </a>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="form-group full-width">
+          <label for="description">Описание</label>
+          <textarea 
+            id="description" 
+            name="description" 
+            class="form-control" 
+            rows="4"
+          >{{ item.description if item.description else '' }}</textarea>
+        </div>
+
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+          Отказ
+        </a>
+        <button type="submit" class="btn btn-primary">
+          💾 Запази промените
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

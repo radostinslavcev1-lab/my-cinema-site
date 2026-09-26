@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Административен панел - CINEMAX{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-bottom: 60px;">
+
+  <!-- Admin Header -->
+  <div class="admin-header">
+    <div>
+      <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 6px;">
+        ⚙️ Административно табло
+      </h1>
+      <p style="color: var(--text-muted);">
+        Управление на каталога, ръчно добавяне и автоматично качване към Streamtape API.
+      </p>
+    </div>
+    <div style="display: flex; gap: 12px;">
+      <a href="{{ url_for('index') }}" class="btn btn-secondary">
+        🌐 Преглед на сайта
+      </a>
+      <a href="{{ url_for('logout') }}" class="btn btn-danger">
+        Изход
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon red">🎬</div>
+      <div class="stat-data">
+        <h4>Общо заглавия</h4>
+        <div class="stat-number">{{ total_count }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon blue">🎥</div>
+      <div class="stat-data">
+        <h4>Филми</h4>
+        <div class="stat-number">{{ movie_count }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon purple">📺</div>
+      <div class="stat-data">
+        <h4>Сериали</h4>
+        <div class="stat-number">{{ series_count }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card" style="position: relative;">
+      <div class="stat-icon green">
+        {% if api_status.valid %}⚡{% else %}⚠️{% endif %}
+      </div>
+      <div class="stat-data" style="flex: 1;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <h4>Streamtape API</h4>
+          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="document.getElementById('apiSettingsModal').classList.add('active')">
+            ⚙️ Въведи ключ
+          </button>
+        </div>
+        <div style="font-size: 1rem; font-weight: 700; color: {{ 'var(--accent-green)' if api_status.valid else 'var(--accent-gold)' }};">
+          {{ 'Свързан (Активен)' if api_status.valid else ('Неконфигуриран' if not api_status.configured else 'Грешка във връзката') }}
+        </div>
+        <small style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 2px;">
+          {{ api_status.message }}
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add New Content Form Card -->
+  <div class="admin-card">
+    <div class="admin-card-title">
+      <span>➕ Добавяне на ново заглавие към каталога</span>
+    </div>
+
+    <!-- Upload Method Segmented Switcher -->
+    <div class="method-switch-container">
+      <button type="button" id="methodManualBtn" class="method-btn active">
+        ✍️ Метод 1: Ръчно въвеждане (Streamtape ID / Линк)
+      </button>
+      <button type="button" id="methodApiBtn" class="method-btn">
+        🚀 Метод 2: Автоматично качване към Streamtape (API)
+      </button>
+    </div>
+
+    <form id="adminAddForm" method="POST" action="{{ url_for('admin_add_media') }}" enctype="multipart/form-data">
+      <!-- Hidden Input for Upload Method -->
+      <input type="hidden" name="upload_method" id="uploadMethodInput" value="manual">
+
+      <div class="form-grid">
+        <!-- Title -->
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="title">Заглавие на филма или сериала *</label>
+          <input 
+            type="text" 
+            id="title" 
+            name="title" 
+            class="form-control" 
+            placeholder="Напр.: Интерстелар (Interstellar)" 
+            required
+          >
+        </div>
+
+        <!-- Media Type -->
+        <div class="form-group">
+          <label for="mediaTypeSelect">Тип съдържание *</label>
+          <select id="mediaTypeSelect" name="media_type" class="form-control">
+            <option value="movie" selected>🎬 Пълнометражен филм</option>
+            <option value="series">📺 Телевизионен сериал</option>
+          </select>
+        </div>
+
+        <!-- Release Year -->
+        <div class="form-group">
+          <label for="release_year">Година на издаване</label>
+          <input 
+            type="number" 
+            id="release_year" 
+            name="release_year" 
+            class="form-control" 
+            placeholder="2024" 
+            min="1900" 
+            max="2099"
+          >
+        </div>
+
+        <!-- Genre -->
+        <div class="form-group">
+          <label for="genre">Жанрове (разделени със запетая)</label>
+          <input 
+            type="text" 
+            id="genre" 
+            name="genre" 
+            class="form-control" 
+            placeholder="Фантастика, Екшън, Приключенски"
+          >
+        </div>
+
+        <!-- Rating -->
+        <div class="form-group">
+          <label for="rating">Рейтинг (1.0 до 10.0)</label>
+          <input 
+            type="number" 
+            step="0.1" 
+            min="0" 
+            max="10" 
+            id="rating" 
+            name="rating" 
+            class="form-control" 
+            placeholder="8.5" 
+            value="7.5"
+          >
+        </div>
+
+        <!-- Poster URL -->
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="poster_url">URL към плакат / постер</label>
+          <input 
+            type="url" 
+            id="poster_url" 
+            name="poster_url" 
+            class="form-control" 
+            placeholder="https://image.tmdb.org/t/p/w500/... или пряк линк към .jpg/.png"
+          >
+          <small style="color: var(--text-muted); font-size: 0.75rem;">
+            Може да ползвате постери от TMDB, IMDb или друг публичен хостинг за изображения.
+          </small>
+        </div>
+
+        <!-- Description -->
+        <div class="form-group full-width">
+          <label for="description">Резюме / Описание</label>
+          <textarea 
+            id="description" 
+            name="description" 
+            class="form-control" 
+            rows="3" 
+            placeholder="Кратък сюжет на филма или сериала..."
+          ></textarea>
+        </div>
+
+        <!-- METHOD 1 FIELDS: Manual Entry -->
+        <div id="manualFields" class="form-group full-width" style="margin-top: 10px;">
+          <div id="movieStreamtapeGroup">
+            <label for="streamtape_id">Streamtape Video ID или пълен линк *</label>
+            <input 
+              type="text" 
+              id="streamtape_id" 
+              name="streamtape_id" 
+              class="form-control" 
+              placeholder="Напр.: 683wVpQp71s9XbZ или https://streamtape.com/v/683wVpQp71s9XbZ/..."
+            >
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+              Системата автоматично ще извлече чистия Video ID от всеки валиден Streamtape линк (embed, watch, v, e).
+            </small>
+          </div>
+
+          <div id="seriesNoticeGroup" style="display: none; padding: 14px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+            <p style="color: var(--accent-purple); font-weight: 600; margin-bottom: 4px;">📺 Сериал: Добавяне на епизоди</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">
+              Ако попълните полето за Streamtape линк по-горе, то ще бъде записано като <strong>Сезон 1, Епизод 1</strong>. След създаване на сериала, ще бъдете пренасочени към специалния панел за управление и добавяне на следващите епизоди.
+            </p>
+          </div>
+        </div>
+
+        <!-- METHOD 2 FIELDS: Automatic 2-Step API Upload -->
+        <div id="apiUploadFields" class="form-group full-width" style="display: none; margin-top: 10px;">
+          <label>Локален видео файл за автоматично качване към Streamtape (.mp4, .mkv, .avi, .mov)</label>
+          
+          <div class="file-upload-box" id="fileUploadBox">
+            <div class="file-upload-icon">☁️</div>
+            <h4 style="margin-bottom: 6px;">Плъзнете видео файла тук или кликнете за избор</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">
+              Поддържани формати: .mp4, .mkv, .avi, .mov, .webm (макс. до 5GB)
+            </p>
+            <input type="file" id="videoFileInput" name="video_file" accept=".mp4,.mkv,.avi,.mov,.webm,.flv,.m4v">
+            <div id="fileSelectedName" class="file-selected-name"></div>
+          </div>
+
+          <!-- Upload Progress Bar Indicator -->
+          <div id="uploadProgressWrapper" class="upload-progress-wrapper">
+            <div class="progress-bar-bg">
+              <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-status-text">
+              <span id="progressStatusDetail">Качване...</span>
+              <span id="progressTextPercent" style="font-weight: 700; color: var(--accent-red);">0%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+        <button type="submit" class="btn btn-primary btn-lg">
+          💾 Запази и публикувай в каталога
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Media Items Management Table -->
+  <div class="admin-card">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+      <h3 style="font-size: 1.3rem; font-weight: 700;">
+        📋 Списък с всички заглавия ({{ total_count }})
+      </h3>
+    </div>
+
+    <div class="table-responsive">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Заглавие</th>
+            <th>Тип</th>
+            <th>Година</th>
+            <th>Жанр</th>
+            <th>Рейтинг</th>
+            <th>Епизоди / ID</th>
+            <th style="text-align: right;">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>
+                <div class="table-media-cell">
+                  <img 
+                    src="{{ item.safe_poster_url }}" 
+                    alt="{{ item.title }}" 
+                    class="table-thumb"
+                    onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
+                  >
+                  <div>
+                    <strong style="color: var(--text-primary); font-size: 0.95rem; display: block;">
+                      {{ item.title }}
+                    </strong>
+                    <small style="color: var(--text-muted); font-size: 0.75rem;">
+                      Добавен: {{ item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '—' }}
+                    </small>
+                  </div>
+                </div>
+              </td>
+
+              <td>
+                <span class="badge {{ 'badge-series' if item.media_type == 'series' else 'badge-movie' }}">
+                  {{ 'СЕРИАЛ' if item.media_type == 'series' else 'ФИЛМ' }}
+                </span>
+              </td>
+
+              <td>{{ item.release_year if item.release_year else '—' }}</td>
+              
+              <td style="max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ item.genre }}">
+                {{ item.genre if item.genre else '—' }}
+              </td>
+
+              <td>
+                <span class="badge badge-rating">★ {{ item.formatted_rating }}</span>
+              </td>
+
+              <td>
+                {% if item.media_type == 'series' %}
+                  <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-secondary btn-sm" style="font-size: 0.78rem;">
+                    📺 {{ item.episode_count }} еп. (Управление)
+                  </a>
+                {% else %}
+                  <code style="font-size: 0.8rem; color: var(--accent-blue); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">
+                    {{ item.streamtape_id if item.streamtape_id else 'Липсва' }}
+                  </code>
+                {% endif %}
+              </td>
+
+              <td>
+                <div class="table-actions" style="justify-content: flex-end;">
+                  <a href="{{ url_for('watch', id=item.id) }}" class="btn btn-secondary btn-sm" title="Гледай в каталога" target="_blank">
+                    👁️
+                  </a>
+                  <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-secondary btn-sm" title="Редактирай">
+                    ✏️
+                  </a>
+                  <button 
+                    type="button" 
+                    class="btn btn-danger btn-sm open-delete-modal-btn" 
+                    data-item-id="{{ item.id }}" 
+                    data-item-title="{{ item.title }}"
+                    data-action-url="{{ url_for('admin_delete_media', id=item.id) }}"
+                    title="Изтрий"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                Все още няма качени филми или сериали в каталога.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal-backdrop">
+  <div class="modal-dialog">
+    <h3 class="modal-title">Потвърждение за изтриване</h3>
+    <p class="modal-body">
+      Сигурни ли сте, че желаете да изтриете <strong id="deleteItemTitle" style="color: var(--accent-red);"></strong>?
+      <br><br>
+      Това действие ще премахне записа и всички свързани към него епизоди от базата данни. Видеото в Streamtape няма да бъде засегнато.
+    </p>
+    <div class="modal-actions">
+      <button type="button" id="cancelDeleteBtn" class="btn btn-secondary">
+        Отказ
+      </button>
+      <form id="deleteItemForm" method="POST" action="">
+        <button type="submit" class="btn btn-danger">
+          Да, изтрий заглавието
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Streamtape API Settings Modal -->
+<div id="apiSettingsModal" class="modal-backdrop">
+  <div class="modal-dialog">
+    <h3 class="modal-title">⚙️ Streamtape API Настройки</h3>
+    <p class="modal-body" style="font-size: 0.9rem; margin-bottom: 16px;">
+      Въведете вашите <strong>API Login</strong> и <strong>API Password / Key</strong> от профила си в <a href="https://streamtape.com/panel/account" target="_blank" style="color: var(--accent-red); text-decoration: underline;">Streamtape</a>.
+    </p>
+
+    <form method="POST" action="{{ url_for('admin_settings_streamtape') }}">
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label for="streamtape_login">Streamtape API Login / Username *</label>
+        <input 
+          type="text" 
+          id="streamtape_login" 
+          name="streamtape_login" 
+          class="form-control" 
+          value="{{ current_streamtape_login }}" 
+          required
+        >
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="streamtape_key">Streamtape API Key / Password *</label>
+        <input 
+          type="password" 
+          id="streamtape_key" 
+          name="streamtape_key" 
+          class="form-control" 
+          placeholder="Поставете вашата парола/ключ тук"
+          value="{{ current_streamtape_key }}" 
+          required
+        >
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+          💡 На сайта на Streamtape пише „Use form to the right/below“ – там генерирате и копирате тази парола/ключ.
+        </small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('apiSettingsModal').classList.remove('active')">
+          Отказ
+        </button>
+        <button type="submit" class="btn btn-primary">
+          💾 Запази и тествай връзката
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

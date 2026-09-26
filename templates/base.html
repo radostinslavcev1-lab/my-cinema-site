@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CINEMAX - Личен видео стрийминг каталог{% endblock %}</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  
+  <!-- Modern Dark Theme Stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="container">
+      <!-- Brand Logo -->
+      <a href="{{ url_for('index') }}" class="nav-brand">
+        <div class="brand-logo-icon">▶</div>
+        <span>CINE<span class="brand-accent">MAX</span></span>
+      </a>
+
+      <!-- Navigation Links -->
+      <ul class="nav-links">
+        <li>
+          <a href="{{ url_for('index') }}" class="nav-link {% if request.path == '/' and not request.args.get('type') %}active{% endif %}">
+            Каталог
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('index', type='movie') }}" class="nav-link {% if request.args.get('type') == 'movie' %}active{% endif %}">
+            Филми
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('index', type='series') }}" class="nav-link {% if request.args.get('type') == 'series' %}active{% endif %}">
+            Сериали
+          </a>
+        </li>
+      </ul>
+
+      <!-- Autocomplete Search Bar -->
+      <div class="nav-search-wrap">
+        <span class="nav-search-icon">🔍</span>
+        <input 
+          type="text" 
+          id="navSearchInput" 
+          class="nav-search-input" 
+          placeholder="Търси филм, сериал или жанр..." 
+          autocomplete="off"
+          value="{{ current_search if current_search else '' }}"
+        >
+        <div id="searchResultsDropdown" class="search-results-dropdown"></div>
+      </div>
+
+      <!-- User / Admin Actions -->
+      <div class="nav-actions">
+        {% if is_admin %}
+          <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-sm">
+            ⚙️ Админ панел
+          </a>
+          <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm" title="Изход от админ">
+            Изход
+          </a>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm">
+            🔐 Вход
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Alerts -->
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+              <span>{{ message }}</span>
+              <button type="button" class="alert-close" aria-label="Затвори">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Page Content -->
+  <main style="flex: 1;">
+    {% if not_found %}
+      <div class="container" style="padding: 100px 24px; text-align: center;">
+        <h1 style="font-size: 5rem; color: var(--accent-red); margin-bottom: 10px;">404</h1>
+        <h2 style="margin-bottom: 20px;">Страницата не е намерена</h2>
+        <p style="color: var(--text-muted); margin-bottom: 30px;">Заглавието или страницата, която търсите, не съществува или е била преместена.</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">Към началната страница</a>
+      </div>
+    {% else %}
+      {% block content %}{% endblock %}
+    {% endif %}
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div>
+          <a href="{{ url_for('index') }}" class="nav-brand" style="font-size: 1.25rem; margin-bottom: 8px;">
+            <div class="brand-logo-icon" style="width: 26px; height: 26px; font-size: 0.8rem;">▶</div>
+            <span>CINE<span class="brand-accent">MAX</span></span>
+          </a>
+          <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 480px;">
+            Лична стрийминг платформа за филми и сериали. Видео файловете се стриймват директно през Streamtape сървъри.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 24px; font-size: 0.88rem;">
+          <a href="{{ url_for('index') }}" style="color: var(--text-secondary);">Каталог</a>
+          <a href="{{ url_for('index', type='movie') }}" style="color: var(--text-secondary);">Филми</a>
+          <a href="{{ url_for('index', type='series') }}" style="color: var(--text-secondary);">Сериали</a>
+          {% if is_admin %}
+            <a href="{{ url_for('admin_dashboard') }}" style="color: var(--accent-red);">Управление</a>
+          {% else %}
+            <a href="{{ url_for('login') }}" style="color: var(--text-secondary);">Администрация</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="footer-copy">
+        <p>&copy; {{ current_year }} CINEMAX Streaming. Задвижвано от Flask & Streamtape API.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Vanilla JavaScript -->
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}CINEMAX - Каталог с филми и сериали{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 24px;">
+
+  <!-- Featured Hero Section (Displayed on default catalog view) -->
+  {% if featured_item and not current_search and not current_genre and not current_type %}
+    <section class="hero-banner" style="background-image: url('{{ featured_item.safe_poster_url }}');">
+      <div class="hero-overlay">
+        <div class="hero-content">
+          <div class="hero-badges">
+            <span class="badge {{ 'badge-series' if featured_item.media_type == 'series' else 'badge-movie' }}">
+              {{ 'СЕРИАЛ' if featured_item.media_type == 'series' else 'ФИЛМ' }}
+            </span>
+            <span class="badge badge-rating">★ {{ featured_item.formatted_rating }}</span>
+            {% if featured_item.release_year %}
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">{{ featured_item.release_year }} г.</span>
+            {% endif %}
+          </div>
+
+          <h1 class="hero-title">{{ featured_item.title }}</h1>
+
+          <div class="hero-meta">
+            {% if featured_item.genre %}
+              <span>🏷️ {{ featured_item.genre }}</span>
+            {% endif %}
+            {% if featured_item.media_type == 'series' %}
+              <span>📺 {{ featured_item.episode_count }} налични епизода</span>
+            {% endif %}
+          </div>
+
+          {% if featured_item.description %}
+            <p class="hero-description">{{ featured_item.description }}</p>
+          {% endif %}
+
+          <div class="hero-actions">
+            <a href="{{ url_for('watch', id=featured_item.id) }}" class="btn btn-primary btn-lg">
+              ▶ Гледай сега
+            </a>
+            <a href="{{ url_for('watch', id=featured_item.id) }}" class="btn btn-secondary btn-lg">
+              ℹ️ Детайли
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <!-- Catalog Filtering & Search Bar -->
+  <section class="catalog-header">
+    <div class="filter-bar">
+      <!-- Media Type Segmented Tabs -->
+      <div class="filter-tabs">
+        <a href="{{ url_for('index', genre=current_genre, sort=current_sort, q=current_search) }}" 
+           class="filter-tab {{ 'active' if not current_type else '' }}">
+          Всички
+        </a>
+        <a href="{{ url_for('index', type='movie', genre=current_genre, sort=current_sort, q=current_search) }}" 
+           class="filter-tab {{ 'active' if current_type == 'movie' else '' }}">
+          🎬 Филми
+        </a>
+        <a href="{{ url_for('index', type='series', genre=current_genre, sort=current_sort, q=current_search) }}" 
+           class="filter-tab {{ 'active' if current_type == 'series' else '' }}">
+          📺 Сериали
+        </a>
+      </div>
+
+      <!-- Genre & Sorting Dropdowns -->
+      <div class="filter-group">
+        <!-- Genre Filter -->
+        <select class="filter-select" onchange="window.location.href=this.value" aria-label="Филтрирай по жанр">
+          <option value="{{ url_for('index', type=current_type, sort=current_sort, q=current_search) }}">
+            Всички жанрове
+          </option>
+          {% for g in all_genres %}
+            <option 
+              value="{{ url_for('index', genre=g, type=current_type, sort=current_sort, q=current_search) }}"
+              {% if current_genre == g %}selected{% endif %}
+            >
+              {{ g }}
+            </option>
+          {% endfor %}
+        </select>
+
+        <!-- Sorting Options -->
+        <select class="filter-select" onchange="window.location.href=this.value" aria-label="Сортиране">
+          <option value="{{ url_for('index', sort='newest', type=current_type, genre=current_genre, q=current_search) }}" {% if current_sort == 'newest' %}selected{% endif %}>
+            🕒 Най-нови
+          </option>
+          <option value="{{ url_for('index', sort='rating', type=current_type, genre=current_genre, q=current_search) }}" {% if current_sort == 'rating' %}selected{% endif %}>
+            ★ Най-висок рейтинг
+          </option>
+          <option value="{{ url_for('index', sort='year', type=current_type, genre=current_genre, q=current_search) }}" {% if current_sort == 'year' %}selected{% endif %}>
+            📅 Година на издаване
+          </option>
+          <option value="{{ url_for('index', sort='title', type=current_type, genre=current_genre, q=current_search) }}" {% if current_sort == 'title' %}selected{% endif %}>
+            🔤 По азбучен ред
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Active Filters Feedback & Counter -->
+    <div class="results-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+      <div>
+        <span>Намерени: <strong>{{ total_results }}</strong> заглавия</span>
+        {% if current_search %}
+          <span> за търсене „<strong>{{ current_search }}</strong>“</span>
+        {% endif %}
+        {% if current_genre %}
+          <span> в жанр „<strong>{{ current_genre }}</strong>“</span>
+        {% endif %}
+      </div>
+
+      {% if current_search or current_genre or current_type %}
+        <a href="{{ url_for('index') }}" style="color: var(--accent-red); font-size: 0.85rem; text-decoration: underline;">
+          ✕ Изчисти филтрите
+        </a>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Netflix/Plex Style Media Cards Grid -->
+  <section class="media-grid">
+    {% for item in items %}
+      <article class="media-card">
+        <a href="{{ url_for('watch', id=item.id) }}" style="display: block;">
+          <div class="media-card-poster">
+            <img 
+              src="{{ item.safe_poster_url }}" 
+              alt="{{ item.title }}" 
+              loading="lazy"
+              onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
+            >
+            
+            <!-- Top Badges -->
+            <div class="card-top-badges">
+              <span class="badge {{ 'badge-series' if item.media_type == 'series' else 'badge-movie' }}">
+                {{ 'СЕРИАЛ' if item.media_type == 'series' else 'ФИЛМ' }}
+              </span>
+              <span class="badge badge-rating">
+                ★ {{ item.formatted_rating }}
+              </span>
+            </div>
+
+            <!-- Hover Play Button Overlay -->
+            <div class="card-play-overlay">
+              <div class="card-play-btn">▶</div>
+            </div>
+          </div>
+        </a>
+
+        <!-- Card Meta Details -->
+        <div class="media-card-body">
+          <h3 class="media-card-title">
+            <a href="{{ url_for('watch', id=item.id) }}" title="{{ item.title }}">{{ item.title }}</a>
+          </h3>
+          
+          <div class="media-card-meta">
+            <span>{{ item.release_year if item.release_year else '—' }}</span>
+            {% if item.media_type == 'series' %}
+              <span>{{ item.episode_count }} еп.</span>
+            {% endif %}
+          </div>
+
+          <div class="media-card-genres" title="{{ item.genre }}">
+            {{ item.genre if item.genre else 'Без посочен жанр' }}
+          </div>
+        </div>
+      </article>
+    {% else %}
+      <!-- Empty State -->
+      <div class="empty-state">
+        <div class="empty-state-icon">🎬</div>
+        <h3>Няма намерени филми или сериали</h3>
+        <p>Не открихме заглавия, отговарящи на вашите критерии за търсене.</p>
+        {% if is_admin %}
+          <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">
+            ➕ Добави ново заглавие
+          </a>
+        {% else %}
+          <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            Преглед на всички заглавия
+          </a>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+</div>
+{% endblock %}

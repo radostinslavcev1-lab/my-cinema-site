@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Гледай {{ item.title }} - CINEMAX{% endblock %}
+
+{% block content %}
+<div class="container watch-container">
+
+  <!-- Breadcrumbs -->
+  <nav class="watch-breadcrumbs" aria-label="Навигация">
+    <a href="{{ url_for('index') }}">Каталог</a>
+    <span>›</span>
+    <a href="{{ url_for('index', type=item.media_type) }}">
+      {{ 'Сериали' if item.media_type == 'series' else 'Филми' }}
+    </a>
+    <span>›</span>
+    <span style="color: var(--text-primary); font-weight: 600;">{{ item.title }}</span>
+    {% if current_episode %}
+      <span style="color: var(--accent-red); font-weight: 600;">(Епизод: {{ current_episode.display_code }})</span>
+    {% endif %}
+  </nav>
+
+  <!-- Big Responsive Video Player Box -->
+  <div class="player-theater-wrapper">
+    <div class="player-aspect-ratio">
+      {% if active_streamtape_id %}
+        <iframe 
+          id="playerIframe"
+          class="player-iframe"
+          src="https://streamtape.com/e/{{ active_streamtape_id }}/" 
+          width="100%" 
+          height="100%" 
+          frameborder="0" 
+          allowfullscreen="true"
+          webkitallowfullscreen="true"
+          mozallowfullscreen="true"
+          scrolling="no"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+        ></iframe>
+      {% else %}
+        <div class="player-unavailable">
+          <div class="player-unavailable-icon">⚠️</div>
+          <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Видеото не е налично</h3>
+          <p style="color: var(--text-muted); max-width: 480px; margin-bottom: 20px;">
+            Все още не е зададен Streamtape Video ID за това заглавие или епизод.
+          </p>
+          {% if is_admin %}
+            {% if item.media_type == 'series' %}
+              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-primary">
+                ➕ Добави епизод с видео
+              </a>
+            {% else %}
+              <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-primary">
+                ⚙️ Въведи Streamtape ID
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Series Episode Switcher Box (Only if media_type == 'series') -->
+  {% if item.media_type == 'series' %}
+    <div class="episode-switcher-box">
+      <div class="switcher-header">
+        <div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Епизоди на сериала</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;" id="currentEpisodeDisplay">
+            {% if current_episode %}
+              Възпроизвежда се: <strong>{{ current_episode.display_title }}</strong>
+            {% else %}
+              Изберете епизод за възпроизвеждане
+            {% endif %}
+          </p>
+        </div>
+
+        <!-- Season selector tabs if more than 1 season -->
+        {% if item.seasons_dict|length > 1 %}
+          <div class="season-tabs">
+            {% for season_num in item.seasons_dict.keys() %}
+              <button 
+                type="button"
+                class="season-tab-btn {% if current_episode and current_episode.season_num == season_num or (not current_episode and loop.first) %}active{% endif %}"
+                data-season="{{ season_num }}"
+              >
+                Сезон {{ season_num }}
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Episodes Grid / List -->
+      {% if item.episodes %}
+        <div class="episodes-grid" id="episodesGrid">
+          {% for ep in item.episodes %}
+            <button 
+              type="button"
+              class="episode-btn {% if current_episode and current_episode.id == ep.id %}active{% endif %}"
+              data-season="{{ ep.season_num }}"
+              data-episode-id="{{ ep.id }}"
+              data-streamtape-id="{{ ep.streamtape_id }}"
+              data-episode-title="{{ ep.display_title }}"
+              style="{% if current_episode and ep.season_num != current_episode.season_num and item.seasons_dict|length > 1 %}display: none;{% endif %}"
+            >
+              <div class="episode-btn-icon">▶</div>
+              <div class="episode-btn-info">
+                <div class="episode-btn-num">{{ ep.display_code }}</div>
+                <div class="episode-btn-title" title="{{ ep.title if ep.title else ep.display_code }}">
+                  {{ ep.title if ep.title else 'Епизод ' ~ ep.episode_num }}
+                </div>
+              </div>
+            </button>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+          <p>Все още няма добавени епизоди за този сериал.</p>
+          {% if is_admin %}
+            <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-secondary btn-sm" style="margin-top: 10px;">
+              ➕ Добави първи епизод
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <!-- Details & Metadata Card -->
+  <div class="watch-details-grid">
+    <div class="watch-poster-side">
+      <img 
+        src="{{ item.safe_poster_url }}" 
+        alt="{{ item.title }}"
+        onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
+      >
+    </div>
+
+    <div class="watch-info-side">
+      <div class="watch-title-row">
+        <h1 class="watch-title">{{ item.title }}</h1>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="shareLinkBtn" class="btn btn-secondary btn-sm">
+            🔗 Сподели линк
+          </button>
+          {% if is_admin %}
+            <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-secondary btn-sm">
+              ✏️ Редактирай
+            </a>
+            {% if item.media_type == 'series' %}
+              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-secondary btn-sm">
+                📺 Епизоди
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Badges Bar -->
+      <div class="watch-badges-bar">
+        <span class="badge {{ 'badge-series' if item.media_type == 'series' else 'badge-movie' }}" style="font-size: 0.85rem; padding: 4px 10px;">
+          {{ 'СЕРИАЛ' if item.media_type == 'series' else 'ФИЛМ' }}
+        </span>
+        <span class="badge badge-rating" style="font-size: 0.85rem; padding: 4px 10px;">
+          ★ {{ item.formatted_rating }}
+        </span>
+        {% if item.release_year %}
+          <span style="color: var(--text-secondary); font-size: 0.95rem; font-weight: 500;">
+            📅 {{ item.release_year }} г.
+          </span>
+        {% endif %}
+        {% if item.genres_list %}
+          {% for g in item.genres_list %}
+            <a href="{{ url_for('index', genre=g) }}" class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-secondary);">
+              {{ g }}
+            </a>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <!-- Description -->
+      <div class="watch-description">
+        {{ item.description if item.description else 'Няма въведено описание за това заглавие.' }}
+      </div>
+
+      <!-- Specs Box -->
+      <div class="watch-specs">
+        <div class="spec-item">
+          <small>Стрийминг сървър</small>
+          <span style="color: var(--accent-red);">Streamtape Cloud</span>
+        </div>
+        <div class="spec-item">
+          <small>Тип заглавие</small>
+          <span>{{ 'Телевизионен сериал' if item.media_type == 'series' else 'Пълнометражен филм' }}</span>
+        </div>
+        {% if item.media_type == 'series' %}
+          <div class="spec-item">
+            <small>Брой налични епизоди</small>
+            <span>{{ item.episode_count }} епизода ({{ item.seasons_dict|length }} сезона)</span>
+          </div>
+        {% endif %}
+        <div class="spec-item">
+          <small>Качество</small>
+          <span>HD / 1080p Stream</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Similar Recommendations Section -->
+  {% if similar_items %}
+    <section style="margin-top: 48px;">
+      <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">
+        Подобни заглавия, които може да ви харесат
+      </h2>
+      <div class="media-grid">
+        {% for sim in similar_items %}
+          <article class="media-card">
+            <a href="{{ url_for('watch', id=sim.id) }}" style="display: block;">
+              <div class="media-card-poster">
+                <img 
+                  src="{{ sim.safe_poster_url }}" 
+                  alt="{{ sim.title }}" 
+                  loading="lazy"
+                  onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
+                >
+                <div class="card-top-badges">
+                  <span class="badge {{ 'badge-series' if sim.media_type == 'series' else 'badge-movie' }}">
+                    {{ 'СЕРИАЛ' if sim.media_type == 'series' else 'ФИЛМ' }}
+                  </span>
+                  <span class="badge badge-rating">★ {{ sim.formatted_rating }}</span>
+                </div>
+                <div class="card-play-overlay">
+                  <div class="card-play-btn">▶</div>
+                </div>
+              </div>
+            </a>
+            <div class="media-card-body">
+              <h3 class="media-card-title">
+                <a href="{{ url_for('watch', id=sim.id) }}">{{ sim.title }}</a>
+              </h3>
+              <div class="media-card-meta">
+                <span>{{ sim.release_year if sim.release_year else '—' }}</span>
+                <span>{{ sim.genre }}</span>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}
