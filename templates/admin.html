@@ -69,6 +69,44 @@
           {{ api_status.message }}
         </small>
       </div>
+  </div>
+
+  <!-- Database Status & Backup/Restore Bar -->
+  {% if not is_postgres %}
+    <div class="alert alert-warning" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <strong style="font-size: 1rem;">⚠️ Внимание: Сайтът в момента ползва временен SQLite файл!</strong>
+        <p style="font-size: 0.85rem; margin-top: 4px; color: inherit; opacity: 0.95;">
+          На безплатния план на Render сървърът се изтрива и създава наново при всяка нова актуализация на кода. За да не се губят филмите и сериалите ви, трябва да добавите вашия <strong>DATABASE_URL</strong> (PostgreSQL) в настройките на Render (Environment Variables).
+        </p>
+      </div>
+      <a href="{{ url_for('admin_export_backup') }}" class="btn btn-secondary btn-sm" style="background: rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.2);">
+        📥 Свали Backup сега
+      </a>
+    </div>
+  {% endif %}
+
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding: 14px 20px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 1.4rem;">💾</span>
+      <div>
+        <strong style="font-size: 0.95rem;">База данни: <span style="color: {{ 'var(--accent-green)' if is_postgres else 'var(--accent-gold)' }};">{{ database_backend }}</span></strong>
+        <small style="display: block; color: var(--text-muted); font-size: 0.78rem;">
+          {{ 'Постоянна облачна база данни — филмите и сериалите ви са защитени завинаги при всякакви актуализации.' if is_postgres else 'Временен файл — направете резервно копие или свържете PostgreSQL в Render.' }}
+        </small>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <a href="{{ url_for('admin_export_backup') }}" class="btn btn-secondary btn-sm" title="Свалете резервно копие на всички качени филми и епизоди">
+        📥 Свали Backup (.json)
+      </a>
+      <form method="POST" action="{{ url_for('admin_import_backup') }}" enctype="multipart/form-data" style="display: inline-flex; align-items: center; margin: 0;">
+        <label class="btn btn-secondary btn-sm" style="cursor: pointer; margin-bottom: 0;" title="Възстановете каталог от предишен .json бекъп">
+          📤 Възстанови от Backup
+          <input type="file" name="backup_file" accept=".json" style="display: none;" onchange="if(confirm('Сигурни ли сте, че желаете да възстановите каталога от избрания файл?')) this.form.submit();">
+        </label>
+      </form>
     </div>
   </div>
 

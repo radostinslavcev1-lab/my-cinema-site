@@ -342,8 +342,126 @@ def admin_dashboard():
         total_episodes=total_episodes,
         api_status=api_status,
         current_streamtape_login=STREAMTAPE_LOGIN,
-        current_streamtape_key=STREAMTAPE_KEY
+        current_streamtape_key=STREAMTAPE_KEY,
+        is_postgres=bool(os.environ.get('DATABASE_URL')),
+        database_backend='PostgreSQL' if os.environ.get('DATABASE_URL') else 'SQLite'
     )
+
+
+@app.route('/admin/backup/export')
+@login_required
+def admin_export_backup():
+    """Exports all media items and episodes as a downloadable JSON backup."""
+    import json
+    from flask import Response
+    items = MediaItem.query.all()
+    backup_data = []
+    for item in items:
+        item_data = {
+            'title': item.title,
+            'description': item.description,
+            'release_year': item.release_year,
+            'genre': item.genre,
+            'rating': item.rating,
+            'poster_url': item.poster_url,
+            'backdrop_url': item.backdrop_url,
+            'is_featured': item.is_featured,
+            'media_type': item.media_type,
+            'streamtape_id': item.streamtape_id,
+            'episodes': [
+                {
+                    'season_num': ep.season_num,
+                    'episode_num': ep.episode_num,
+                    'title': ep.title,
+                    'streamtape_id': ep.streamtape_id
+                }
+                for ep in item.episodes
+            ]
+        }
+        backup_data.append(item_data)
+
+    json_str = json.dumps(backup_data, ensure_ascii=False, indent=2)
+    filename = f"cinema_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    return Response(
+        json_str,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment;filename={filename}'}
+    )
+
+
+@app.route('/admin/backup/import', methods=['POST'])
+@login_required
+def admin_import_backup():
+    """Restores catalog items from an uploaded JSON backup file."""
+    import json
+    if 'backup_file' not in request.files or not request.files['backup_file'].filename:
+        flash('Моля, изберете валиден .json файл за възстановяване!', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    try:
+        content = request.files['backup_file'].read().decode('utf-8')
+        data = json.loads(content)
+        if not isinstance(data, list):
+            raise ValueError("Невалиден формат на файла за резервно копие.")
+
+        imported_count = 0
+        for item_dict in data:
+            title = item_dict.get('title')
+            if not title:
+                continue
+
+            existing = MediaItem.query.filter_by(title=title).first()
+            if existing:
+                item = existing
+                item.description = item_dict.get('description', item.description)
+                item.release_year = item_dict.get('release_year', item.release_year)
+                item.genre = item_dict.get('genre', item.genre)
+                item.rating = item_dict.get('rating', item.rating)
+                item.poster_url = item_dict.get('poster_url', item.poster_url)
+                item.backdrop_url = item_dict.get('backdrop_url', item.backdrop_url)
+                item.is_featured = item_dict.get('is_featured', item.is_featured)
+                item.streamtape_id = item_dict.get('streamtape_id', item.streamtape_id)
+            else:
+                item = MediaItem(
+                    title=title,
+                    description=item_dict.get('description'),
+                    release_year=item_dict.get('release_year'),
+                    genre=item_dict.get('genre'),
+                    rating=item_dict.get('rating', 7.0),
+                    poster_url=item_dict.get('poster_url'),
+                    backdrop_url=item_dict.get('backdrop_url'),
+                    is_featured=item_dict.get('is_featured', False),
+                    media_type=item_dict.get('media_type', 'movie'),
+                    streamtape_id=item_dict.get('streamtape_id')
+                )
+                db.session.add(item)
+                db.session.flush()
+
+            for ep_data in item_dict.get('episodes', []):
+                ep_exists = Episode.query.filter_by(
+                    media_id=item.id,
+                    season_num=ep_data.get('season_num', 1),
+                    episode_num=ep_data.get('episode_num', 1)
+                ).first()
+                if not ep_exists:
+                    new_ep = Episode(
+                        media_id=item.id,
+                        season_num=ep_data.get('season_num', 1),
+                        episode_num=ep_data.get('episode_num', 1),
+                        title=ep_data.get('title'),
+                        streamtape_id=ep_data.get('streamtape_id', '')
+                    )
+                    db.session.add(new_ep)
+
+            imported_count += 1
+
+        db.session.commit()
+        flash(f"Успешно възстановени / обновени {imported_count} заглавия и техните епизоди!", 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Грешка при импортиране: {str(e)}", 'danger')
+
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/settings/streamtape', methods=['POST'])
