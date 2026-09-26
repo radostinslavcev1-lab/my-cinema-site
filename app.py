@@ -658,17 +658,52 @@ def request_entity_too_large(e):
 
 
 # ==========================================
+# STREAMTAPE DIRECT BROWSER UPLOAD API
+# ==========================================
+
+@app.route('/api/streamtape/get-upload-url')
+@login_required
+def api_get_upload_url():
+    """
+    Returns an upload URL from Streamtape so the browser can stream
+    the video file directly to Streamtape servers, completely bypassing
+    Render's 512MB RAM and avoiding 502 Bad Gateway timeouts!
+    """
+    try:
+        from streamtape import get_upload_url
+        upload_url = get_upload_url(STREAMTAPE_LOGIN, STREAMTAPE_KEY)
+        return jsonify({'success': True, 'upload_url': upload_url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ==========================================
 # DATABASE INITIALIZATION HELPER
 # ==========================================
 
 def create_tables():
-    """Creates database tables if they do not exist."""
-    with app.app_context():
-        db.create_all()
+    """Creates database tables safely if they do not exist."""
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception as e:
+        app.logger.warning(f"Database initialization warning: {e}")
 
 
-# Create tables on startup
+# Create tables safely on startup
 create_tables()
+
+
+@app.before_request
+def ensure_db_ready():
+    """Ensure database connection is ready on first request."""
+    if not getattr(app, '_db_initialized', False):
+        try:
+            db.create_all()
+            app._db_initialized = True
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

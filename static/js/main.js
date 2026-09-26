@@ -263,14 +263,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Upload with Progress Bar via XMLHttpRequest
+  // Helper for Direct Browser-to-Streamtape Cloud Upload
+  async function uploadDirectToStreamtape(file, onProgress, onStatus) {
+    onStatus('Свързване със Streamtape API за уникален адрес за качване...');
+    const urlResp = await fetch('/api/streamtape/get-upload-url');
+    const urlData = await urlResp.json();
+    if (!urlResp.ok || !urlData.success || !urlData.upload_url) {
+      throw new Error(urlData.error || 'Липсват Streamtape API ключове. Моля въведете ги в настройките.');
+    }
+
+    onStatus('Директно облачно качване към сървърите на Streamtape...');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const fd = new FormData();
+      fd.append('file', file);
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(e.loaded, e.total);
+        }
+      });
+
+      xhr.onload = () => {
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          if (resp.status === 200 && resp.result && resp.result.id) {
+            resolve(resp.result.id);
+          } else {
+            reject(new Error(resp.msg || 'Streamtape не върна Video ID.'));
+          }
+        } catch (err) {
+          reject(new Error('Невалиден отговор от сървъра на Streamtape.'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Мрежова грешка при трансфера на видеото към Streamtape.'));
+      };
+
+      xhr.open('POST', urlData.upload_url);
+      xhr.send(fd);
+    });
+  }
+
+  // Upload with Progress Bar for Movies / Series (adminAddForm)
   if (adminAddForm && progressWrapper && progressBarFill) {
-    adminAddForm.addEventListener('submit', (e) => {
+    adminAddForm.addEventListener('submit', async (e) => {
       const isApiUpload = uploadMethodInput && uploadMethodInput.value === 'api_upload';
-      if (!isApiUpload) return; // Allow standard submission for manual method
+      if (!isApiUpload) return; // Allow normal manual submission
 
       const file = fileInput ? fileInput.files[0] : null;
-      if (!file) return; // HTML5 required attribute will handle it
+      if (!file) return;
 
       e.preventDefault();
 
@@ -278,47 +321,49 @@ document.addEventListener('DOMContentLoaded', () => {
       progressWrapper.style.display = 'block';
       progressBarFill.style.width = '0%';
       progressTextPercent.textContent = '0%';
-      progressStatusDetail.textContent = 'Подготовка и качване към сървъра...';
+      progressStatusDetail.textContent = 'Инициализиране...';
 
-      const formData = new FormData(adminAddForm);
-      const xhr = new XMLHttpRequest();
-
-      // Upload progress event
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          progressBarFill.style.width = `${percent}%`;
-          progressTextPercent.textContent = `${percent}%`;
-
-          if (percent >= 100) {
-            progressStatusDetail.textContent = 'Файлът е получен! Извършва се 2-стъпково качване към Streamtape API (моля изчакайте)...';
-          } else {
-            const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
-            const totalMB = (event.total / (1024 * 1024)).toFixed(1);
-            progressStatusDetail.textContent = `Качване: ${uploadedMB} MB / ${totalMB} MB`;
+      try {
+        const streamtapeId = await uploadDirectToStreamtape(
+          file,
+          (loaded, total) => {
+            const percent = Math.round((loaded / total) * 100);
+            progressBarFill.style.width = `${percent}%`;
+            progressTextPercent.textContent = `${percent}%`;
+            const upMB = (loaded / (1024 * 1024)).toFixed(1);
+            const totMB = (total / (1024 * 1024)).toFixed(1);
+            progressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
+          },
+          (statusText) => {
+            progressStatusDetail.textContent = statusText;
           }
-        }
-      });
+        );
 
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-          if (xhr.status === 200 || xhr.status === 302 || xhr.responseURL) {
-            progressStatusDetail.textContent = 'Готово! Пренасочване...';
-            // Redirect to resulting URL
-            window.location.href = xhr.responseURL || '/admin';
-          } else {
-            progressStatusDetail.textContent = 'Възникна грешка при качването.';
-            alert('Грешка при качване на видеото към сървъра или Streamtape.');
-          }
-        }
-      };
+        progressStatusDetail.textContent = 'Качването завърши успешно! Записване в каталога...';
 
-      xhr.open('POST', adminAddForm.action || window.location.href);
-      xhr.send(formData);
+        // Auto populate streamtape_id input and submit lightweight metadata
+        let streamtapeIdInput = document.getElementById('streamtape_id');
+        if (streamtapeIdInput) {
+          streamtapeIdInput.value = streamtapeId;
+        }
+
+        // Switch method to manual so backend doesn't re-upload
+        uploadMethodInput.value = 'manual';
+
+        // Clear file input so huge video is NOT re-sent to Render!
+        fileInput.value = '';
+
+        // Submit form with metadata
+        adminAddForm.submit();
+
+      } catch (err) {
+        progressStatusDetail.textContent = 'Грешка: ' + err.message;
+        alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно на Streamtape.com и да въведете линка в Метод 1 (Ръчно въвеждане).');
+      }
     });
   }
 
-  // Upload with Progress Bar for Episodes
+  // Upload with Progress Bar for Episodes (adminEpisodeForm)
   const adminEpisodeForm = document.getElementById('adminEpisodeForm');
   const epProgressWrapper = document.getElementById('epProgressWrapper');
   const epProgressBarFill = document.getElementById('epProgressBarFill');
@@ -329,9 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const epSubmitBtn = document.getElementById('epSubmitBtn');
 
   if (adminEpisodeForm && epProgressWrapper && epProgressBarFill) {
-    adminEpisodeForm.addEventListener('submit', (e) => {
+    adminEpisodeForm.addEventListener('submit', async (e) => {
       const isApiUpload = epUploadMethodInput && epUploadMethodInput.value === 'api_upload';
-      if (!isApiUpload) return;
+      if (!isApiUpload) return; // Allow manual link submission
 
       const file = epVideoFile ? epVideoFile.files[0] : null;
       if (!file) return;
@@ -341,50 +386,50 @@ document.addEventListener('DOMContentLoaded', () => {
       epProgressWrapper.style.display = 'block';
       epProgressBarFill.style.width = '0%';
       epProgressTextPercent.textContent = '0%';
-      epProgressStatusDetail.textContent = 'Подготовка и качване...';
+      epProgressStatusDetail.textContent = 'Инициализиране...';
       if (epSubmitBtn) {
         epSubmitBtn.disabled = true;
-        epSubmitBtn.textContent = '⏳ Качване към сървъра...';
+        epSubmitBtn.textContent = '⏳ Качване в Streamtape...';
       }
 
-      const formData = new FormData(adminEpisodeForm);
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          epProgressBarFill.style.width = `${percent}%`;
-          epProgressTextPercent.textContent = `${percent}%`;
-
-          if (percent >= 100) {
-            epProgressStatusDetail.textContent = 'Файлът е изпратен! Извършва се трансфер към Streamtape API...';
-            if (epSubmitBtn) epSubmitBtn.textContent = '⏳ Обработка в Streamtape...';
-          } else {
-            const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
-            const totalMB = (event.total / (1024 * 1024)).toFixed(1);
-            epProgressStatusDetail.textContent = `Качване: ${uploadedMB} MB / ${totalMB} MB`;
+      try {
+        const streamtapeId = await uploadDirectToStreamtape(
+          file,
+          (loaded, total) => {
+            const percent = Math.round((loaded / total) * 100);
+            epProgressBarFill.style.width = `${percent}%`;
+            epProgressTextPercent.textContent = `${percent}%`;
+            const upMB = (loaded / (1024 * 1024)).toFixed(1);
+            const totMB = (total / (1024 * 1024)).toFixed(1);
+            epProgressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
+          },
+          (statusText) => {
+            epProgressStatusDetail.textContent = statusText;
           }
-        }
-      });
+        );
 
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === XMLHttpRequest.DONE) {
-          if (xhr.status === 200 || xhr.status === 302 || xhr.responseURL) {
-            epProgressStatusDetail.textContent = 'Готово!';
-            window.location.href = xhr.responseURL || window.location.href;
-          } else {
-            epProgressStatusDetail.textContent = 'Възникна грешка при качването.';
-            alert('Грешка при качване на видеото към сървъра или Streamtape (Код: ' + xhr.status + '). Можете да качите видеото директно в Streamtape.com и да въведете линка ръчно.');
-            if (epSubmitBtn) {
-              epSubmitBtn.disabled = false;
-              epSubmitBtn.textContent = '💾 Добави епизода';
-            }
-          }
-        }
-      };
+        epProgressStatusDetail.textContent = 'Видео файлът е в Streamtape! Записване на епизода...';
 
-      xhr.open('POST', adminEpisodeForm.action || window.location.href);
-      xhr.send(formData);
+        // Set streamtape_id in input
+        const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
+        if (epStreamtapeInput) {
+          epStreamtapeInput.value = streamtapeId;
+        }
+
+        // Switch to manual and clear video file so Render receives 0 MB video!
+        epUploadMethodInput.value = 'manual';
+        epVideoFile.value = '';
+
+        adminEpisodeForm.submit();
+
+      } catch (err) {
+        epProgressStatusDetail.textContent = 'Грешка: ' + err.message;
+        alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно в Streamtape.com и да поставите получения линк в полето.');
+        if (epSubmitBtn) {
+          epSubmitBtn.disabled = false;
+          epSubmitBtn.textContent = '💾 Добави епизода';
+        }
+      }
     });
   }
 
