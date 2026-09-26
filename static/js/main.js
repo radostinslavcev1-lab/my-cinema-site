@@ -318,6 +318,76 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Upload with Progress Bar for Episodes
+  const adminEpisodeForm = document.getElementById('adminEpisodeForm');
+  const epProgressWrapper = document.getElementById('epProgressWrapper');
+  const epProgressBarFill = document.getElementById('epProgressBarFill');
+  const epProgressTextPercent = document.getElementById('epProgressTextPercent');
+  const epProgressStatusDetail = document.getElementById('epProgressStatusDetail');
+  const epUploadMethodInput = document.getElementById('epUploadMethodInput');
+  const epVideoFile = document.getElementById('epVideoFile');
+  const epSubmitBtn = document.getElementById('epSubmitBtn');
+
+  if (adminEpisodeForm && epProgressWrapper && epProgressBarFill) {
+    adminEpisodeForm.addEventListener('submit', (e) => {
+      const isApiUpload = epUploadMethodInput && epUploadMethodInput.value === 'api_upload';
+      if (!isApiUpload) return;
+
+      const file = epVideoFile ? epVideoFile.files[0] : null;
+      if (!file) return;
+
+      e.preventDefault();
+
+      epProgressWrapper.style.display = 'block';
+      epProgressBarFill.style.width = '0%';
+      epProgressTextPercent.textContent = '0%';
+      epProgressStatusDetail.textContent = 'Подготовка и качване...';
+      if (epSubmitBtn) {
+        epSubmitBtn.disabled = true;
+        epSubmitBtn.textContent = '⏳ Качване към сървъра...';
+      }
+
+      const formData = new FormData(adminEpisodeForm);
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          epProgressBarFill.style.width = `${percent}%`;
+          epProgressTextPercent.textContent = `${percent}%`;
+
+          if (percent >= 100) {
+            epProgressStatusDetail.textContent = 'Файлът е изпратен! Извършва се трансфер към Streamtape API...';
+            if (epSubmitBtn) epSubmitBtn.textContent = '⏳ Обработка в Streamtape...';
+          } else {
+            const uploadedMB = (event.loaded / (1024 * 1024)).toFixed(1);
+            const totalMB = (event.total / (1024 * 1024)).toFixed(1);
+            epProgressStatusDetail.textContent = `Качване: ${uploadedMB} MB / ${totalMB} MB`;
+          }
+        }
+      });
+
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          if (xhr.status === 200 || xhr.status === 302 || xhr.responseURL) {
+            epProgressStatusDetail.textContent = 'Готово!';
+            window.location.href = xhr.responseURL || window.location.href;
+          } else {
+            epProgressStatusDetail.textContent = 'Възникна грешка при качването.';
+            alert('Грешка при качване на видеото към сървъра или Streamtape (Код: ' + xhr.status + '). Можете да качите видеото директно в Streamtape.com и да въведете линка ръчно.');
+            if (epSubmitBtn) {
+              epSubmitBtn.disabled = false;
+              epSubmitBtn.textContent = '💾 Добави епизода';
+            }
+          }
+        }
+      };
+
+      xhr.open('POST', adminEpisodeForm.action || window.location.href);
+      xhr.send(formData);
+    });
+  }
+
 
   // ========================================================
   // 6. DELETE CONFIRMATION MODAL

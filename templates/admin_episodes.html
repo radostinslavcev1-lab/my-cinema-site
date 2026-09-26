@@ -42,7 +42,7 @@
         </button>
       </div>
 
-      <form method="POST" action="{{ url_for('admin_add_episode', media_id=media.id) }}" enctype="multipart/form-data">
+      <form id="adminEpisodeForm" method="POST" action="{{ url_for('admin_add_episode', media_id=media.id) }}" enctype="multipart/form-data">
         <input type="hidden" name="upload_method" id="epUploadMethodInput" value="manual">
 
         <div class="form-grid">
@@ -93,6 +93,9 @@
               class="form-control" 
               placeholder="Напр.: https://streamtape.com/v/abc123xyz"
             >
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+              💡 Можете директно да качите видеото в Streamtape.com и да поставите получения линк тук.
+            </small>
           </div>
 
           <!-- Method 2: API Video Upload -->
@@ -106,13 +109,24 @@
               accept=".mp4,.mkv,.avi,.mov,.webm"
             >
             <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              Файлът ще бъде изпратен директно към сървърите на Streamtape през API.
+              Файлът ще бъде изпратен към сървърите на Streamtape през API.
             </small>
+
+            <!-- Episode Upload Progress Bar -->
+            <div id="epProgressWrapper" class="upload-progress-wrapper" style="margin-top: 14px; display: none;">
+              <div class="progress-bar-bg">
+                <div id="epProgressBarFill" class="progress-bar-fill"></div>
+              </div>
+              <div class="progress-status-text">
+                <span id="epProgressStatusDetail">Качване...</span>
+                <span id="epProgressTextPercent" style="font-weight: 700; color: var(--accent-red);">0%</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <div style="margin-top: 20px;">
-          <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <button type="submit" id="epSubmitBtn" class="btn btn-primary" style="width: 100%;">
             💾 Добави епизода
           </button>
         </div>
