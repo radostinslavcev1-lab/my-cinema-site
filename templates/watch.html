@@ -10,7 +10,7 @@
     <a href="{{ url_for('index') }}">Каталог</a>
     <span>›</span>
     <a href="{{ url_for('index', type=item.media_type) }}">
-      {{ 'Сериали' if item.media_type == 'series' else 'Филми' }}
+      {{ 'Сериали' if item.media_type == 'series' else 'ФИЛМИ' }}
     </a>
     <span>›</span>
     <span style="color: var(--text-primary); font-weight: 600;">{{ item.title }}</span>
@@ -19,7 +19,68 @@
     {% endif %}
   </nav>
 
-  <!-- Big Responsive Video Player Box -->
+  <!-- 1. ПЪРВО: Снимка, Име, Баджове и Описание на филма / сериала -->
+  <div class="watch-details-grid">
+    <div class="watch-poster-side">
+      <img 
+        src="{{ item.safe_poster_url }}" 
+        alt="{{ item.title }}"
+        onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
+      >
+    </div>
+
+    <div class="watch-info-side">
+      <div class="watch-title-row">
+        <h1 class="watch-title">{{ item.title }}</h1>
+        <div class="watch-actions-top">
+          <button type="button" id="shareLinkBtn" class="btn btn-secondary btn-sm">
+            🔗 Сподели линк
+          </button>
+          {% if is_admin %}
+            <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-secondary btn-sm">
+              ✏️ Редактирай
+            </a>
+            {% if item.media_type == 'series' %}
+              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-secondary btn-sm">
+                📺 Епизоди
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Badges Bar (Тип, Рейтинг, Година, Жанрове) -->
+      <div class="watch-badges-bar">
+        <span class="badge {{ 'badge-series' if item.media_type == 'series' else 'badge-movie' }}">
+          {{ 'СЕРИАЛ' if item.media_type == 'series' else 'ФИЛМ' }}
+        </span>
+        <span class="badge badge-rating">
+          ★ {{ item.formatted_rating }}
+        </span>
+        {% if item.release_year %}
+          <span style="color: var(--text-secondary); font-size: 0.95rem; font-weight: 500;">
+            📅 {{ item.release_year }} г.
+          </span>
+        {% endif %}
+        {% if item.genres_list %}
+          {% for g in item.genres_list %}
+            <a href="{{ url_for('index', genre=g) }}" class="badge badge-genre">
+              {{ g }}
+            </a>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Описание на заглавието -->
+    <div class="watch-description-box">
+      <div class="watch-description">
+        {{ item.description if item.description else 'Няма въведено описание за това заглавие.' }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. СЛЕД ТОВА: Видео плейър (Theater Mode) -->
   <div class="player-theater-wrapper">
     <div class="player-aspect-ratio">
       {% if active_streamtape_id %}
@@ -59,7 +120,7 @@
     </div>
   </div>
 
-  <!-- Series Episode Switcher Box (Only if media_type == 'series') -->
+  <!-- 3. ПОД ПЛЕЙЪРА: Епизоди на сериала (само при сериали) -->
   {% if item.media_type == 'series' %}
     <div class="episode-switcher-box">
       <div class="switcher-header">
@@ -126,91 +187,42 @@
     </div>
   {% endif %}
 
-  <!-- Details & Metadata Card -->
-  <div class="watch-details-grid">
-    <div class="watch-poster-side">
-      <img 
-        src="{{ item.safe_poster_url }}" 
-        alt="{{ item.title }}"
-        onerror="this.src='https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=600&q=80'"
-      >
+  <!-- 4. ПОД ЕПИЗОДИТЕ: Описание на стрийминга (Streamtape Cloud, Качество HD 1080p и др.) -->
+  <div class="watch-specs-card">
+    <div class="specs-card-header">
+      <h4>⚡ Стрийминг информация и качество</h4>
     </div>
-
-    <div class="watch-info-side">
-      <div class="watch-title-row">
-        <h1 class="watch-title">{{ item.title }}</h1>
-        <div style="display: flex; gap: 8px;">
-          <button type="button" id="shareLinkBtn" class="btn btn-secondary btn-sm">
-            🔗 Сподели линк
-          </button>
-          {% if is_admin %}
-            <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-secondary btn-sm">
-              ✏️ Редактирай
-            </a>
-            {% if item.media_type == 'series' %}
-              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-secondary btn-sm">
-                📺 Епизоди
-              </a>
-            {% endif %}
-          {% endif %}
-        </div>
+    <div class="watch-specs">
+      <div class="spec-item">
+        <small>☁️ Стрийминг сървър</small>
+        <span style="color: var(--accent-red); font-weight: 700;">Streamtape Cloud</span>
       </div>
-
-      <!-- Badges Bar -->
-      <div class="watch-badges-bar">
-        <span class="badge {{ 'badge-series' if item.media_type == 'series' else 'badge-movie' }}" style="font-size: 0.85rem; padding: 4px 10px;">
-          {{ 'СЕРИАЛ' if item.media_type == 'series' else 'ФИЛМ' }}
-        </span>
-        <span class="badge badge-rating" style="font-size: 0.85rem; padding: 4px 10px;">
-          ★ {{ item.formatted_rating }}
-        </span>
-        {% if item.release_year %}
-          <span style="color: var(--text-secondary); font-size: 0.95rem; font-weight: 500;">
-            📅 {{ item.release_year }} г.
-          </span>
-        {% endif %}
-        {% if item.genres_list %}
-          {% for g in item.genres_list %}
-            <a href="{{ url_for('index', genre=g) }}" class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-secondary);">
-              {{ g }}
-            </a>
-          {% endfor %}
-        {% endif %}
+      <div class="spec-item">
+        <small>🎬 Качество на видеото</small>
+        <span>Full HD / 1080p Cloud Stream</span>
       </div>
-
-      <!-- Description -->
-      <div class="watch-description">
-        {{ item.description if item.description else 'Няма въведено описание за това заглавие.' }}
+      <div class="spec-item">
+        <small>🏷️ Формат</small>
+        <span>{{ 'Телевизионен сериал' if item.media_type == 'series' else 'Пълнометражен филм' }}</span>
       </div>
-
-      <!-- Specs Box -->
-      <div class="watch-specs">
+      {% if item.media_type == 'series' %}
         <div class="spec-item">
-          <small>Стрийминг сървър</small>
-          <span style="color: var(--accent-red);">Streamtape Cloud</span>
+          <small>📺 Налични епизоди</small>
+          <span>{{ item.episode_count }} епизода ({{ item.seasons_dict|length }} сезона)</span>
         </div>
+      {% else %}
         <div class="spec-item">
-          <small>Тип заглавие</small>
-          <span>{{ 'Телевизионен сериал' if item.media_type == 'series' else 'Пълнометражен филм' }}</span>
+          <small>🕒 Времетраене</small>
+          <span>Пълен филм (Без рекламен лимит)</span>
         </div>
-        {% if item.media_type == 'series' %}
-          <div class="spec-item">
-            <small>Брой налични епизоди</small>
-            <span>{{ item.episode_count }} епизода ({{ item.seasons_dict|length }} сезона)</span>
-          </div>
-        {% endif %}
-        <div class="spec-item">
-          <small>Качество</small>
-          <span>HD / 1080p Stream</span>
-        </div>
-      </div>
+      {% endif %}
     </div>
   </div>
 
-  <!-- Similar Recommendations Section -->
+  <!-- 5. Подобни заглавия (Recommendations) -->
   {% if similar_items %}
-    <section style="margin-top: 48px;">
-      <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;">
+    <section class="watch-recommendations" style="margin-top: 40px;">
+      <h2 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 20px;">
         Подобни заглавия, които може да ви харесат
       </h2>
       <div class="media-grid">

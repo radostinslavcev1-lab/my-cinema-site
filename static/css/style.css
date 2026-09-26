@@ -841,21 +841,31 @@ button, input, select, textarea {
 .watch-details-grid {
   display: grid;
   grid-template-columns: 240px 1fr;
-  gap: 32px;
+  grid-template-rows: auto 1fr;
+  gap: 16px 32px;
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
   padding: 32px;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
+}
+
+.watch-poster-side {
+  grid-column: 1;
+  grid-row: 1 / span 2;
 }
 
 .watch-poster-side img {
   width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
 
 .watch-info-side {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
 }
@@ -874,19 +884,50 @@ button, input, select, textarea {
   line-height: 1.2;
 }
 
+.watch-actions-top {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .watch-badges-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
+}
+
+.watch-description-box {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .watch-description {
   font-size: 1.05rem;
   line-height: 1.7;
   color: #d1d5db;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+}
+
+/* Standalone Streaming Specs Card (Under Player & Episodes) */
+.watch-specs-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.specs-card-header {
+  margin-bottom: 16px;
+}
+
+.specs-card-header h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 .watch-specs {
@@ -897,7 +938,6 @@ button, input, select, textarea {
   background-color: var(--bg-main);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
-  margin-top: auto;
 }
 
 .spec-item small {
@@ -1733,6 +1773,7 @@ textarea.form-control {
 
   .episode-switcher-box,
   .watch-details-grid,
+  .watch-specs-card,
   .watch-container > section {
     margin-left: 14px;
     margin-right: 14px;
@@ -1800,66 +1841,137 @@ textarea.form-control {
     font-size: 0.82rem;
   }
 
+  /* --------------------------------------------------------
+     1. Details Card on Mobile: Poster on left, Title & Badges on right, Description below
+     -------------------------------------------------------- */
   .watch-details-grid {
-    grid-template-columns: 1fr;
-    padding: 18px 14px;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 105px 1fr;
+    grid-template-rows: auto auto;
+    gap: 12px 14px;
+    padding: 14px;
+    margin-bottom: 16px;
     border-radius: var(--radius-md);
-    margin-bottom: 24px;
   }
 
   .watch-poster-side {
-    max-width: 130px;
-    margin: 0 auto;
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 105px;
+    width: 100%;
+    margin: 0;
+  }
+
+  .watch-poster-side img {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .watch-info-side {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
 
   .watch-title-row {
     flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-
-  .watch-title-row > div {
-    width: 100%;
-    display: flex;
-    gap: 8px;
-  }
-
-  .watch-title-row .btn {
-    flex: 1;
-    text-align: center;
-    justify-content: center;
-    padding: 10px;
-    font-size: 0.82rem;
+    gap: 6px;
+    align-items: flex-start;
+    margin-bottom: 4px;
   }
 
   .watch-title {
-    font-size: 1.45rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  .watch-actions-top {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+  }
+
+  .watch-actions-top .btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 4px;
   }
 
   .watch-badges-bar {
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 5px;
+    margin-top: 6px;
+    margin-bottom: 0;
+    flex-wrap: wrap;
+  }
+
+  .watch-badges-bar .badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .watch-description-box {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .watch-description {
     font-size: 0.88rem;
     line-height: 1.55;
-    margin-bottom: 18px;
+    color: #d1d5db;
+    margin-bottom: 0;
+  }
+
+  /* --------------------------------------------------------
+     4. Streaming Specs Card on Mobile (Under Player & Episodes)
+     -------------------------------------------------------- */
+  .watch-specs-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 16px 14px;
+    margin-bottom: 24px;
+  }
+
+  .specs-card-header {
+    margin-bottom: 12px;
+  }
+
+  .specs-card-header h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
   }
 
   .watch-specs {
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 8px;
     padding: 12px;
+    background-color: var(--bg-main);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
   }
 
   .spec-item {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 
   .spec-item small {
     font-size: 0.68rem;
+    display: block;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 2px;
   }
 
   /* --------------------------------------------------------
@@ -2025,9 +2137,24 @@ textarea.form-control {
   .watch-breadcrumbs,
   .episode-switcher-box,
   .watch-details-grid,
+  .watch-specs-card,
   .watch-container > section {
     margin-left: 10px;
     margin-right: 10px;
+  }
+
+  .watch-details-grid {
+    grid-template-columns: 90px 1fr;
+    gap: 10px;
+    padding: 12px 10px;
+  }
+
+  .watch-poster-side {
+    max-width: 90px;
+  }
+
+  .watch-title {
+    font-size: 1.15rem;
   }
 
   .stats-grid {
