@@ -179,6 +179,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
+  // 3.1 WATCH PAGE: TOGGLE DESCRIPTION (SHOW MORE / SHOW LESS)
+  // ========================================================
+  const toggleDescBtn = document.getElementById('toggleDescriptionBtn');
+  const watchDescription = document.getElementById('watchDescription');
+
+  if (toggleDescBtn && watchDescription) {
+    // If the text naturally fits without being clipped, hide the toggle button
+    if (watchDescription.scrollHeight <= watchDescription.clientHeight + 4) {
+      toggleDescBtn.style.display = 'none';
+      watchDescription.classList.remove('clamped');
+    }
+
+    toggleDescBtn.addEventListener('click', () => {
+      const isExpanded = watchDescription.classList.contains('expanded');
+      const textSpan = toggleDescBtn.querySelector('.toggle-desc-text');
+
+      if (isExpanded) {
+        watchDescription.classList.remove('expanded');
+        watchDescription.classList.add('clamped');
+        toggleDescBtn.classList.remove('expanded');
+        if (textSpan) textSpan.textContent = 'Покажи повече';
+        toggleDescBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        watchDescription.classList.remove('clamped');
+        watchDescription.classList.add('expanded');
+        toggleDescBtn.classList.add('expanded');
+        if (textSpan) textSpan.textContent = 'Покажи по-малко';
+        toggleDescBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  }
+
+
+  // ========================================================
   // 4. ADMIN PANEL: METHOD TOGGLE (MANUAL vs API UPLOAD)
   // ========================================================
   const methodManualBtn = document.getElementById('methodManualBtn');

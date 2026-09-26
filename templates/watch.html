@@ -74,9 +74,17 @@
 
     <!-- Описание на заглавието -->
     <div class="watch-description-box">
-      <div class="watch-description">
-        {{ item.description if item.description else 'Няма въведено описание за това заглавие.' }}
+      {% set desc = item.description if item.description else 'Няма въведено описание за това заглавие.' %}
+      {% set is_long_desc = item.description and item.description|length > 130 %}
+      <div class="watch-description {% if is_long_desc %}clamped{% endif %}" id="watchDescription">
+        {{ desc }}
       </div>
+      {% if is_long_desc %}
+        <button type="button" id="toggleDescriptionBtn" class="btn-toggle-desc" aria-expanded="false">
+          <span class="toggle-desc-text">Покажи повече</span>
+          <span class="toggle-desc-icon">▼</span>
+        </button>
+      {% endif %}
     </div>
   </div>
 
