@@ -5,12 +5,12 @@
 {% block content %}
 <div class="container" style="padding-top: 30px; padding-bottom: 60px; max-width: 900px;">
 
-  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 14px;">
     <div>
       <h1 style="font-size: 1.8rem; font-weight: 800;">✏️ Редактиране на заглавие</h1>
       <p style="color: var(--text-muted);">{{ item.title }} ({{ 'Сериал' if item.media_type == 'series' else 'Филм' }})</p>
     </div>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       <a href="{{ url_for('watch', id=item.id) }}" class="btn btn-secondary btn-sm" target="_blank">
         👁️ Преглед в сайта
       </a>

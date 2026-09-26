@@ -57,6 +57,11 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a, button, input, select, textarea {
+  touch-action: manipulation;
 }
 
 a {
@@ -421,6 +426,10 @@ button, input, select, textarea {
 /* ========================================================
    FILTER & SEARCH SECTION
    ======================================================== */
+.catalog-container {
+  padding-top: 24px;
+}
+
 .catalog-header {
   margin-bottom: 30px;
 }
@@ -969,6 +978,19 @@ button, input, select, textarea {
   margin-bottom: 36px;
 }
 
+.admin-two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 900px) {
+  .admin-two-col-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
 .admin-card-title {
   font-size: 1.3rem;
   font-weight: 700;
@@ -1305,11 +1327,23 @@ textarea.form-control {
 }
 
 /* ========================================================
-   RESPONSIVE DESIGN (MOBILE & TABLETS)
+   MOBILE BOTTOM NAVIGATION (APP-LIKE EXPERIENCE)
+   ======================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+.nav-search-input.mobile-focused {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.4) !important;
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN (TABLETS & LAPTOPS <= 992px)
    ======================================================== */
 @media (max-width: 992px) {
   .hero-banner {
-    min-height: 400px;
+    min-height: 420px;
   }
   .hero-title {
     font-size: 2.2rem;
@@ -1318,45 +1352,685 @@ textarea.form-control {
     grid-template-columns: 1fr;
   }
   .watch-poster-side {
-    max-width: 240px;
+    max-width: 220px;
     margin: 0 auto;
   }
 }
 
+/* ========================================================
+   RESPONSIVE DESIGN (SMARTPHONES <= 768px)
+   ======================================================== */
 @media (max-width: 768px) {
+  /* Prevent content from being hidden behind bottom navigation */
+  body {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .container {
+    padding: 0 14px;
+  }
+
+  .catalog-container {
+    padding-top: 14px;
+  }
+
+  /* --------------------------------------------------------
+     Top Header & Navbar
+     -------------------------------------------------------- */
+  .navbar {
+    padding: 0;
+  }
+
   .navbar .container {
     height: auto;
-    padding-top: 14px;
-    padding-bottom: 14px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    gap: 8px;
     flex-wrap: wrap;
   }
+
+  /* Hide desktop horizontal menu links (now accessible via bottom bar) */
+  .navbar .nav-links {
+    display: none;
+  }
+
+  .nav-brand {
+    font-size: 1.28rem;
+    gap: 8px;
+  }
+
+  .nav-brand .brand-logo-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .nav-actions .btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Full-width Search Bar below logo */
   .nav-search-wrap {
     order: 3;
     max-width: 100%;
     width: 100%;
+    margin-top: 2px;
   }
-  .nav-links {
+
+  .nav-search-input {
+    height: 40px;
+    font-size: 0.88rem;
+    padding: 8px 14px 8px 36px;
+    border-radius: var(--radius-sm);
+  }
+
+  .nav-search-icon {
+    left: 12px;
+    font-size: 0.85rem;
+  }
+
+  .search-results-dropdown {
+    top: calc(100% + 6px);
+    border-radius: var(--radius-md);
+    max-height: 60vh;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+  }
+
+  .search-item {
+    padding: 10px 12px;
     gap: 12px;
   }
+
+  .search-item-thumb {
+    width: 40px;
+    height: 56px;
+    border-radius: 4px;
+  }
+
+  .search-item-info h4 {
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+  }
+
+  /* --------------------------------------------------------
+     Mobile Bottom App Navigation Bar
+     -------------------------------------------------------- */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: rgba(12, 14, 18, 0.94);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.7);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(62px + env(safe-area-inset-bottom, 0px));
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    padding-top: 4px;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-nav-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    transition: transform 0.2s ease;
+  }
+
+  .mobile-nav-label {
+    letter-spacing: -0.2px;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--accent-red);
+    font-weight: 700;
+  }
+
+  .mobile-nav-item.active .mobile-nav-icon {
+    transform: translateY(-2px);
+  }
+
+  /* --------------------------------------------------------
+     Hero Banner (Vertical Cinematic Overlay)
+     -------------------------------------------------------- */
+  .hero-banner {
+    min-height: 380px;
+    margin-bottom: 22px;
+    border-radius: var(--radius-md);
+  }
+
   .hero-overlay {
-    padding: 24px;
+    background: linear-gradient(
+      0deg,
+      rgba(10, 11, 14, 0.98) 0%,
+      rgba(10, 11, 14, 0.8) 50%,
+      rgba(10, 11, 14, 0.2) 100%
+    );
+    align-items: flex-end;
+    padding: 20px 14px;
   }
+
+  .hero-content {
+    max-width: 100%;
+  }
+
+  .hero-badges {
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hero-badges .badge {
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
   .hero-title {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 8px;
   }
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 16px;
+
+  .hero-meta {
+    font-size: 0.82rem;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
   }
+
+  .hero-description {
+    font-size: 0.86rem;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+    margin-bottom: 16px;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .hero-actions .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    padding: 12px;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+
+  /* --------------------------------------------------------
+     Catalog Filter Section
+     -------------------------------------------------------- */
+  .catalog-header {
+    margin-bottom: 20px;
+  }
+
   .filter-bar {
+    padding: 12px;
+    gap: 10px;
     flex-direction: column;
     align-items: stretch;
   }
+
+  .filter-tabs {
+    width: 100%;
+    display: flex;
+    padding: 3px;
+  }
+
+  .filter-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 0.82rem;
+    border-radius: 4px;
+  }
+
   .filter-group {
+    width: 100%;
+    display: flex;
+    gap: 8px;
     justify-content: space-between;
   }
+
+  .filter-select {
+    flex: 1;
+    min-width: 0;
+    padding: 9px 10px;
+    font-size: 0.82rem;
+    height: 40px;
+  }
+
+  .results-info {
+    font-size: 0.82rem;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* --------------------------------------------------------
+     Media Cards Grid (Clean 2-Column Netflix Style)
+     -------------------------------------------------------- */
+  .media-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .media-card {
+    border-radius: var(--radius-sm);
+  }
+
+  .media-card:active {
+    transform: scale(0.97);
+  }
+
+  .media-card-poster {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  }
+
+  .card-top-badges {
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    gap: 4px;
+  }
+
+  .card-top-badges .badge {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+  }
+
+  .media-card-body {
+    padding: 10px;
+  }
+
+  .media-card-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin-bottom: 4px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .media-card-meta {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+  }
+
+  .media-card-genres {
+    font-size: 0.7rem;
+  }
+
+  /* --------------------------------------------------------
+     Watch Page & Player (Full-Bleed Edge-to-Edge)
+     -------------------------------------------------------- */
+  .watch-container {
+    padding: 0 0 36px 0;
+  }
+
+  .watch-breadcrumbs {
+    padding: 10px 14px 0 14px;
+    margin-bottom: 12px;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .watch-breadcrumbs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .player-theater-wrapper {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin-bottom: 16px;
+    box-shadow: none;
+  }
+
+  .episode-switcher-box,
+  .watch-details-grid,
+  .watch-container > section {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .episode-switcher-box {
+    padding: 16px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+  }
+
+  .switcher-header {
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .season-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    width: 100%;
+  }
+
+  .season-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .season-tab-btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+  }
+
+  .episodes-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-height: 380px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 2px;
+  }
+
+  .episode-btn {
+    padding: 10px 12px;
+    min-height: 48px;
+    border-radius: var(--radius-sm);
+  }
+
+  .episode-btn-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .episode-btn-num {
+    font-size: 0.75rem;
+  }
+
+  .episode-btn-title {
+    font-size: 0.82rem;
+  }
+
+  .watch-details-grid {
+    grid-template-columns: 1fr;
+    padding: 18px 14px;
+    gap: 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 24px;
+  }
+
+  .watch-poster-side {
+    max-width: 130px;
+    margin: 0 auto;
+  }
+
+  .watch-title-row {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .watch-title-row > div {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .watch-title-row .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+    padding: 10px;
+    font-size: 0.82rem;
+  }
+
+  .watch-title {
+    font-size: 1.45rem;
+  }
+
+  .watch-badges-bar {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .watch-description {
+    font-size: 0.88rem;
+    line-height: 1.55;
+    margin-bottom: 18px;
+  }
+
+  .watch-specs {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .spec-item {
+    font-size: 0.8rem;
+  }
+
+  .spec-item small {
+    font-size: 0.68rem;
+  }
+
+  /* --------------------------------------------------------
+     Admin Panel & Dashboard
+     -------------------------------------------------------- */
   .admin-header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .admin-header div:last-child {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .admin-header div:last-child .btn {
+    flex: 1;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 1.1rem;
+  }
+
+  .stat-number {
+    font-size: 1.3rem;
+  }
+
+  .stat-data h4 {
+    font-size: 0.75rem;
+  }
+
+  .upload-card {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .upload-method-selector {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .method-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .form-group,
+  .form-group.full-width,
+  .form-group[style*="span 2"] {
+    grid-column: 1 / -1 !important;
+  }
+
+  .file-upload-box {
+    padding: 24px 14px;
+  }
+
+  .admin-table-card {
+    padding: 16px 12px;
+  }
+
+  .table-responsive {
+    border-radius: var(--radius-sm);
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 10px 8px;
+    font-size: 0.82rem;
+  }
+
+  .table-thumb {
+    width: 32px;
+    height: 44px;
+  }
+
+  .table-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .table-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+
+  /* --------------------------------------------------------
+     Footer
+     -------------------------------------------------------- */
+  .footer {
+    padding: 28px 0 16px 0;
+  }
+
+  .footer-content {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
+  }
+
+  .footer-content > div:last-child {
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 0.82rem;
+  }
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN (VERY SMALL PHONES <= 400px)
+   ======================================================== */
+@media (max-width: 400px) {
+  .container {
+    padding: 0 10px;
+  }
+
+  .media-grid {
+    gap: 8px;
+  }
+
+  .media-card-body {
+    padding: 8px 6px;
+  }
+
+  .media-card-title {
+    font-size: 0.82rem;
+  }
+
+  .hero-banner {
+    min-height: 350px;
+  }
+
+  .hero-title {
+    font-size: 1.35rem;
+  }
+
+  .hero-actions .btn {
+    padding: 10px 8px;
+    font-size: 0.82rem;
+  }
+
+  .watch-breadcrumbs,
+  .episode-switcher-box,
+  .watch-details-grid,
+  .watch-container > section {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 }

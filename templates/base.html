@@ -2,7 +2,12 @@
 <html lang="bg">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CINEMAX">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>{% block title %}CINEMAX - Личен видео стрийминг каталог{% endblock %}</title>
   
   <!-- Favicon -->
@@ -135,6 +140,37 @@
       </div>
     </div>
   </footer>
+
+  <!-- Mobile Bottom Navigation Bar (Visible only on screens <= 768px) -->
+  <nav class="mobile-bottom-nav" aria-label="Мобилна навигация">
+    <a href="{{ url_for('index') }}" class="mobile-nav-item {% if request.path == '/' and not request.args.get('type') and not request.args.get('q') and not request.args.get('genre') %}active{% endif %}">
+      <span class="mobile-nav-icon">🏠</span>
+      <span class="mobile-nav-label">Начало</span>
+    </a>
+    <a href="{{ url_for('index', type='movie') }}" class="mobile-nav-item {% if request.args.get('type') == 'movie' %}active{% endif %}">
+      <span class="mobile-nav-icon">🎬</span>
+      <span class="mobile-nav-label">Филми</span>
+    </a>
+    <a href="{{ url_for('index', type='series') }}" class="mobile-nav-item {% if request.args.get('type') == 'series' %}active{% endif %}">
+      <span class="mobile-nav-icon">📺</span>
+      <span class="mobile-nav-label">Сериали</span>
+    </a>
+    <button type="button" class="mobile-nav-item" id="mobileSearchTrigger" aria-label="Търсене">
+      <span class="mobile-nav-icon">🔍</span>
+      <span class="mobile-nav-label">Търсене</span>
+    </button>
+    {% if is_admin %}
+      <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item {% if '/admin' in request.path %}active{% endif %}">
+        <span class="mobile-nav-icon">⚙️</span>
+        <span class="mobile-nav-label">Админ</span>
+      </a>
+    {% else %}
+      <a href="{{ url_for('login') }}" class="mobile-nav-item {% if request.path == '/login' %}active{% endif %}">
+        <span class="mobile-nav-icon">🔐</span>
+        <span class="mobile-nav-label">Вход</span>
+      </a>
+    {% endif %}
+  </nav>
 
   <!-- Vanilla JavaScript -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>

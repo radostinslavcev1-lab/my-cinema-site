@@ -95,6 +95,20 @@ document.addEventListener('DOMContentLoaded', () => {
         searchDropdown.classList.remove('active');
       }
     });
+
+    // Mobile Bottom Bar Search button trigger
+    const mobileSearchTrigger = document.getElementById('mobileSearchTrigger');
+    if (mobileSearchTrigger) {
+      mobileSearchTrigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          navSearchInput.focus();
+          navSearchInput.classList.add('mobile-focused');
+          setTimeout(() => navSearchInput.classList.remove('mobile-focused'), 1500);
+        }, 250);
+      });
+    }
   }
 
 
