@@ -147,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const streamtapeId = btn.dataset.streamtapeId;
-        const embedUrl = btn.dataset.embedUrl || (streamtapeId ? `https://streamtape.com/e/${streamtapeId}/` : '');
+        const fallbackUrl = streamtapeId ? (streamtapeId.startsWith('anon:') ? `https://anonmp4.art/embed/${streamtapeId.split(':')[1]}` : `https://streamtape.com/e/${streamtapeId}/`) : '';
+        const embedUrl = btn.dataset.embedUrl || fallbackUrl;
         const serverName = btn.dataset.serverName || 'Cloud Stream';
         const episodeId = btn.dataset.episodeId;
         const episodeTitle = btn.dataset.episodeTitle;

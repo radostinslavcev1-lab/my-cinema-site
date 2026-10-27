@@ -7,29 +7,32 @@ def resolve_embed_url(video_identifier: str) -> str:
     """
     Resolves video identifier or URL to a playable iframe embed URL.
     Supports both Streamtape and AnonMP4.
+    AnonMP4 streaming embeds live on https://anonmp4.art/embed/{id}.
     """
     if not video_identifier:
         return None
     val = video_identifier.strip()
     if val.startswith('http://') or val.startswith('https://'):
         if 'anonmp4.' in val:
+            # Normalize all AnonMP4 domains (anonmp4.to, anonmp4.xyz, etc.) to canonical embed domain anonmp4.art
+            val = re.sub(r'anonmp4\.(?:to|com|net|xyz|xyzapi)', 'anonmp4.art', val)
             if '/v/' in val:
                 return val.replace('/v/', '/embed/')
             if '/embed/' in val:
                 return val
             parts = val.split('?')[0].rstrip('/').split('/')
-            return f"https://anonmp4.to/embed/{parts[-1]}"
+            return f"https://anonmp4.art/embed/{parts[-1]}"
         if 'streamtape.com/v/' in val:
             return val.replace('streamtape.com/v/', 'streamtape.com/e/')
         return val
 
     if val.startswith('anon:') or val.startswith('anonmp4:'):
         clean_id = val.split(':', 1)[1].strip()
-        return f"https://anonmp4.to/embed/{clean_id}"
+        return f"https://anonmp4.art/embed/{clean_id}"
 
     if 'anon' in val.lower():
         clean_id = val.replace('anon:', '').replace('anonmp4:', '').strip()
-        return f"https://anonmp4.to/embed/{clean_id}"
+        return f"https://anonmp4.art/embed/{clean_id}"
 
     return f"https://streamtape.com/e/{val}/"
 
