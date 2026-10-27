@@ -154,6 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!embedUrl && !streamtapeId) return;
 
+        // Ensure Ad-Shield sandbox is maintained on episode switch
+        applyAdShieldState(isAdShieldActive, false);
+
         // Update iframe source
         playerIframe.src = embedUrl;
 
@@ -217,6 +220,109 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleDescBtn.setAttribute('aria-expanded', 'true');
       }
     });
+  }
+
+
+  // ========================================================
+  // 3.2 WATCH PAGE: AD-SHIELD (ANTI-POPUP & ANTI-REDIRECT ENGINE)
+  // ========================================================
+  const toggleAdShieldBtn = document.getElementById('toggleAdShieldBtn');
+  const adShieldStatusText = document.getElementById('adShieldStatusText');
+  const adShieldToggleLabel = document.getElementById('adShieldToggleLabel');
+  const adShieldPulse = document.getElementById('adShieldPulse');
+  const reloadPlayerBtn = document.getElementById('reloadPlayerBtn');
+
+  // Sandbox definitions:
+  // Strict Shield: allows HTML5 video execution & same-origin streaming, but blocks popups, new tabs, top navigation!
+  const SANDBOX_SHIELD = 'allow-scripts allow-same-origin allow-forms allow-presentation';
+  const SANDBOX_STANDARD = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-top-navigation-by-user-activation';
+
+  // Read saved state (default is true / active)
+  let isAdShieldActive = localStorage.getItem('cinema_adshield_active') !== 'false';
+
+  function updateAdShieldUI(active) {
+    if (adShieldStatusText) {
+      adShieldStatusText.textContent = active ? 'Активен' : 'Изключен';
+      adShieldStatusText.style.color = active ? '#10b981' : '#ef4444';
+    }
+    if (adShieldToggleLabel) {
+      adShieldToggleLabel.textContent = active ? 'ВКЛ' : 'ИЗКЛ';
+    }
+    if (adShieldPulse) {
+      if (active) {
+        adShieldPulse.classList.remove('disabled');
+      } else {
+        adShieldPulse.classList.add('disabled');
+      }
+    }
+    if (toggleAdShieldBtn) {
+      if (active) {
+        toggleAdShieldBtn.classList.add('active');
+        toggleAdShieldBtn.classList.remove('disabled-state');
+      } else {
+        toggleAdShieldBtn.classList.remove('active');
+        toggleAdShieldBtn.classList.add('disabled-state');
+      }
+    }
+  }
+
+  function applyAdShieldState(active, reload = false) {
+    if (!playerIframe) return;
+
+    if (active) {
+      playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
+    } else {
+      playerIframe.setAttribute('sandbox', SANDBOX_STANDARD);
+    }
+
+    updateAdShieldUI(active);
+
+    if (reload) {
+      const currentSrc = playerIframe.src;
+      playerIframe.src = 'about:blank';
+      setTimeout(() => {
+        playerIframe.src = currentSrc;
+      }, 60);
+    }
+  }
+
+  // Initial apply
+  if (playerIframe) {
+    applyAdShieldState(isAdShieldActive, false);
+  }
+
+  // Toggle button click listener
+  if (toggleAdShieldBtn) {
+    toggleAdShieldBtn.addEventListener('click', () => {
+      isAdShieldActive = !isAdShieldActive;
+      localStorage.setItem('cinema_adshield_active', isAdShieldActive ? 'true' : 'false');
+      applyAdShieldState(isAdShieldActive, true);
+    });
+  }
+
+  // Reload player button
+  if (reloadPlayerBtn && playerIframe) {
+    reloadPlayerBtn.addEventListener('click', () => {
+      const currentSrc = playerIframe.src;
+      playerIframe.src = 'about:blank';
+      setTimeout(() => {
+        playerIframe.src = currentSrc;
+      }, 60);
+    });
+  }
+
+  // Protect parent window against rogue popup scripts from external iframes
+  try {
+    const parentRealOpen = window.open;
+    window.open = function(url, target, features) {
+      if (isAdShieldActive) {
+        console.warn('[Ad-Shield] Защитата блокира изскачащ прозорец към:', url);
+        return null;
+      }
+      return parentRealOpen.call(window, url, target, features);
+    };
+  } catch (err) {
+    // Ignore restricted environments
   }
 
 
