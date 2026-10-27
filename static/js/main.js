@@ -356,6 +356,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (methodManualBtn) methodManualBtn.addEventListener('click', () => setUploadMethod('manual'));
   if (methodApiBtn) methodApiBtn.addEventListener('click', () => setUploadMethod('api_upload'));
 
+  // Live auto-detection of streaming server when pasting link or ID
+  document.querySelectorAll('input[name="streamtape_id"]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const val = e.target.value.toLowerCase().trim();
+      const form = e.target.closest('form');
+      if (!form) return;
+      const select = form.querySelector('select[name="server_type"]');
+      if (!select) return;
+
+      if (val.includes('anonmp4') || val.startsWith('anon:') || val.startsWith('anonmp4:')) {
+        select.value = 'anonmp4';
+      } else if (val.includes('streamtape') || val.includes('streamta.pe')) {
+        select.value = 'streamtape';
+      }
+    });
+  });
+
   // Handle media type change (movie vs series)
   if (mediaTypeSelect) {
     const handleMediaTypeChange = () => {

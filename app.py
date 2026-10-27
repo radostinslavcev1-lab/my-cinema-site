@@ -514,9 +514,10 @@ def admin_add_media():
                 except Exception:
                     pass
     else:
-        # Method 1: Manual entry (Streamtape or AnonMP4)
+        # Method: Manual entry (Streamtape or AnonMP4)
         raw_streamtape_input = request.form.get('streamtape_id', '').strip()
-        streamtape_id = extract_streamtape_id(raw_streamtape_input)
+        server_type = request.form.get('server_type', 'auto').strip()
+        streamtape_id = extract_streamtape_id(raw_streamtape_input, server_type)
 
         if media_type == 'movie' and not streamtape_id:
             flash('За филм е необходимо да въведете валиден Streamtape или AnonMP4 ID / линк!', 'danger')
@@ -624,7 +625,8 @@ def admin_edit_media(id):
         # Update streamtape ID for movies
         if item.media_type == 'movie':
             raw_id = request.form.get('streamtape_id', '').strip()
-            item.streamtape_id = extract_streamtape_id(raw_id)
+            server_type = request.form.get('server_type', 'auto').strip()
+            item.streamtape_id = extract_streamtape_id(raw_id, server_type)
 
         db.session.commit()
         flash(f"Заглавието „{item.title}“ беше обновено успешно!", 'success')
@@ -749,7 +751,8 @@ def admin_add_episode(media_id):
                     pass
     else:
         raw_input = request.form.get('streamtape_id', '').strip()
-        streamtape_id = extract_streamtape_id(raw_input)
+        server_type = request.form.get('server_type', 'auto').strip()
+        streamtape_id = extract_streamtape_id(raw_input, server_type)
 
     if not streamtape_id:
         flash('Необходим е валиден Streamtape или AnonMP4 ID / линк за епизода!', 'danger')

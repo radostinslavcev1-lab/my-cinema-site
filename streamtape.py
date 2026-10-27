@@ -13,52 +13,60 @@ class StreamtapeAPIError(Exception):
     pass
 
 
-def extract_streamtape_id(raw_value: str) -> str:
+def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     """
-    Extracts the clean video ID (Streamtape or AnonMP4) from various link formats or raw ID strings.
-    Supported examples:
-      - Streamtape: https://streamtape.com/e/6w7qVbQqMphBq/ -> 6w7qVbQqMphBq
-      - AnonMP4: https://anonmp4.to/v/NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
-      - AnonMP4: https://anonmp4.to/embed/NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
-      - anon:NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
+    Extracts the clean video ID (Streamtape or AnonMP4) from various link formats, iframe tags, or raw ID strings.
+    server_hint can be: 'auto', 'anonmp4', or 'streamtape'.
     """
     if not raw_value:
         return ""
 
     raw_value = raw_value.strip()
 
-    # 1. AnonMP4 links or tags
-    anon_pattern = r'(?:anonmp4\.(?:to|com|xyz|net|art))/(?:v|embed)/([a-zA-Z0-9_\-]+)'
-    anon_match = re.search(anon_pattern, raw_value, re.IGNORECASE)
-    if anon_match:
-        return f"anon:{anon_match.group(1)}"
-
+    # If already prefixed
     if raw_value.startswith('anon:') or raw_value.startswith('anonmp4:'):
-        return raw_value
+        clean = raw_value.split(':', 1)[1].strip()
+        return f"anon:{clean}"
+
+    # Extract URL if user pasted an iframe
+    src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value, re.IGNORECASE)
+    eval_str = src_match.group(1).strip() if src_match else raw_value
+
+    # 1. Broad AnonMP4 detection (matches anonmp4.to, anonmp4.art, anonmp4.com, etc. with any path)
+    anon_pattern = r'anonmp4\.[a-z0-9\-]+/(?:v/|embed/|e/|d/|watch/)?([a-zA-Z0-9_\-]+)'
+    anon_match = re.search(anon_pattern, eval_str, re.IGNORECASE)
+    if anon_match:
+        clean_id = anon_match.group(1).replace('.mp4', '').replace('.mkv', '').split('?')[0].split('&')[0].strip()
+        if clean_id:
+            return f"anon:{clean_id}"
+
+    # Any other URL or string containing 'anonmp4'
+    if 'anonmp4' in eval_str.lower():
+        parts = eval_str.split('?')[0].split('#')[0].rstrip('/').split('/')
+        if parts:
+            clean_id = parts[-1].replace('.mp4', '').replace('.mkv', '').strip()
+            if clean_id:
+                return f"anon:{clean_id}"
 
     # 2. Pattern for standard Streamtape embed or watch links
-    pattern = r'(?:streamtape\.[a-z]+|streamta\.pe)/(?:e|v)/([a-zA-Z0-9_\-]+)'
-    match = re.search(pattern, raw_value, re.IGNORECASE)
-    if match:
-        return match.group(1)
+    st_pattern = r'(?:streamtape\.[a-z]+|streamta\.pe)/(?:e|v)/([a-zA-Z0-9_\-]+)'
+    st_match = re.search(st_pattern, eval_str, re.IGNORECASE)
+    if st_match:
+        return st_match.group(1)
 
-    # In case user pasted an iframe src or full tag
-    src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value)
-    if src_match:
-        nested_anon = re.search(anon_pattern, src_match.group(1), re.IGNORECASE)
-        if nested_anon:
-            return f"anon:{nested_anon.group(1)}"
-        nested_match = re.search(pattern, src_match.group(1), re.IGNORECASE)
-        if nested_match:
-            return nested_match.group(1)
-
-    # If it's a raw identifier or ends with an ID
-    clean_val = raw_value.split('?')[0].split('#')[0].rstrip('/')
+    # 3. Clean raw value if it is a path or URL
+    clean_val = eval_str.split('?')[0].split('#')[0].rstrip('/')
     if '/' in clean_val:
         clean_val = clean_val.split('/')[-1]
 
-    # Validate identifier format
     clean_val = clean_val.replace('.mp4', '').replace('.mkv', '').strip()
+
+    # 4. If explicit server hint is provided
+    if server_hint == 'anonmp4':
+        return f"anon:{clean_val}"
+    elif server_hint == 'streamtape':
+        return clean_val
+
     return clean_val
 
 

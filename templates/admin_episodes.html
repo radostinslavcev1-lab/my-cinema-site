@@ -114,16 +114,28 @@
 
           <!-- Method 2: Manual Streamtape or AnonMP4 Link / ID -->
           <div id="epManualGroup" class="form-group full-width">
-            <label for="streamtape_id">Streamtape или AnonMP4 линк / ID *</label>
-            <input 
-              type="text" 
-              id="streamtape_id" 
-              name="streamtape_id" 
-              class="form-control" 
-              placeholder="Напр.: https://anonmp4.to/v/NLEusIzEvLs3s3B или https://streamtape.com/v/..."
-            >
-            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              💡 Можете да поставите линк от AnonMP4 (anonmp4.to) или Streamtape (streamtape.com).
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 8px;">
+              <div>
+                <label for="epServerType">Стрийминг сървър</label>
+                <select id="epServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
+                  <option value="auto" selected>🔍 Автоматично</option>
+                  <option value="anonmp4">⚡ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
+                  <option value="streamtape">🚀 Streamtape Cloud</option>
+                </select>
+              </div>
+              <div>
+                <label for="streamtape_id">Линк или Video ID *</label>
+                <input 
+                  type="text" 
+                  id="streamtape_id" 
+                  name="streamtape_id" 
+                  class="form-control" 
+                  placeholder="https://anonmp4.to/v/... или https://anonmp4.art/embed/..."
+                >
+              </div>
+            </div>
+            <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
+              💡 Можете да поставите директно линк за вграждане или гледане от <strong>AnonMP4</strong> (anonmp4.to / anonmp4.art) или <strong>Streamtape</strong>.
             </small>
           </div>
 
@@ -182,8 +194,11 @@
                       <strong style="color: var(--text-primary); font-size: 0.88rem;">
                         {{ ep.display_code }}: {{ ep.title if ep.title else 'Епизод ' ~ ep.episode_num }}
                       </strong>
-                      <div style="font-size: 0.75rem; color: var(--text-muted);">
-                        ID: <code style="color: var(--accent-blue);">{{ ep.streamtape_id }}</code>
+                      <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                        <span>ID: <code style="color: var(--accent-blue);">{{ ep.streamtape_id }}</code></span>
+                        <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: {% if 'anon' in ep.streamtape_id %}rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
+                          {{ ep.server_name }}
+                        </span>
                       </div>
                     </div>
 
