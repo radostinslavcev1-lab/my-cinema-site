@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 3.2 WATCH PAGE: AD-SHIELD (ANTI-POPUP & ANTI-REDIRECT ENGINE)
+  // 3.2 WATCH PAGE: AD-SHIELD & PLAYER ENGINE
   // ========================================================
   const toggleAdShieldBtn = document.getElementById('toggleAdShieldBtn');
   const adShieldStatusText = document.getElementById('adShieldStatusText');
@@ -233,13 +233,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const adShieldPulse = document.getElementById('adShieldPulse');
   const reloadPlayerBtn = document.getElementById('reloadPlayerBtn');
 
-  // Sandbox definitions:
-  // Strict Shield: allows HTML5 video execution & same-origin streaming, but blocks popups, new tabs, top navigation!
+  // Streamtape strictly disallows the 'sandbox' attribute and blocks playback with:
+  // "Client blocked! Your browser or the embed you are viewing are doing nasty things!"
+  // When Streamtape is active, sandbox MUST be removed so the player works seamlessly.
   const SANDBOX_SHIELD = 'allow-scripts allow-same-origin allow-forms allow-presentation';
-  const SANDBOX_STANDARD = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-top-navigation-by-user-activation';
 
-  // Read saved state (default is true / active)
-  let isAdShieldActive = localStorage.getItem('cinema_adshield_active') !== 'false';
+  // Read saved state (default is false to ensure 100% compatibility across all streaming providers)
+  let isAdShieldActive = localStorage.getItem('cinema_adshield_active') === 'true';
 
   function updateAdShieldUI(active) {
     if (adShieldStatusText) {
@@ -270,10 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function applyAdShieldState(active, reload = false) {
     if (!playerIframe) return;
 
-    if (active) {
-      playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
+    const isStreamtape = playerIframe.src && playerIframe.src.includes('streamtape.com');
+
+    // Never add sandbox to Streamtape because it triggers "Client blocked!"
+    if (isStreamtape || !active) {
+      playerIframe.removeAttribute('sandbox');
     } else {
-      playerIframe.setAttribute('sandbox', SANDBOX_STANDARD);
+      playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
     }
 
     updateAdShieldUI(active);
@@ -310,20 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         playerIframe.src = currentSrc;
       }, 60);
     });
-  }
-
-  // Protect parent window against rogue popup scripts from external iframes
-  try {
-    const parentRealOpen = window.open;
-    window.open = function(url, target, features) {
-      if (isAdShieldActive) {
-        console.warn('[Ad-Shield] Защитата блокира изскачащ прозорец към:', url);
-        return null;
-      }
-      return parentRealOpen.call(window, url, target, features);
-    };
-  } catch (err) {
-    // Ignore restricted environments
   }
 
 
