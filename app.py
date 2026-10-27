@@ -17,6 +17,7 @@ from streamtape import (
     extract_streamtape_id, upload_file_to_streamtape,
     check_api_status, StreamtapeAPIError
 )
+from anonmp4 import upload_to_anonmp4, AnonMP4APIError
 
 # Load environment variables from .env file
 load_dotenv()
@@ -210,11 +211,17 @@ def watch(id):
 
         if current_episode:
             active_streamtape_id = current_episode.streamtape_id
+            active_embed_url = current_episode.embed_url
+            active_server_name = current_episode.server_name
         else:
             active_streamtape_id = item.streamtape_id
+            active_embed_url = item.embed_url
+            active_server_name = item.server_name
     else:
         # Movie
         active_streamtape_id = item.streamtape_id
+        active_embed_url = item.embed_url
+        active_server_name = item.server_name
 
     # Find similar titles based on shared genres or same type
     similar_items = []
@@ -239,6 +246,8 @@ def watch(id):
         item=item,
         current_episode=current_episode,
         active_streamtape_id=active_streamtape_id,
+        active_embed_url=active_embed_url,
+        active_server_name=active_server_name,
         similar_items=similar_items
     )
 
@@ -425,7 +434,40 @@ def admin_add_media():
     upload_method = request.form.get('upload_method', 'manual')
     streamtape_id = None
 
-    if upload_method == 'api_upload':
+    if upload_method == 'anonmp4_upload':
+        # Automatic upload to AnonMP4 API (up to 20 GB, completely free & anonymous)
+        file = request.files.get('anon_file') or request.files.get('video_file')
+        if not file or file.filename == '':
+            flash('Не е избран видео файл за качване!', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        if not allowed_file(file.filename):
+            allowed_str = ', '.join(ALLOWED_EXTENSIONS)
+            flash(f'Невалиден формат на файла. Разрешени формати: {allowed_str}', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        safe_name = secure_filename(file.filename)
+        temp_path = os.path.join(TEMP_DIR, f"anon_{int(datetime.now().timestamp())}_{safe_name}")
+
+        try:
+            file.save(temp_path)
+            upload_result = upload_to_anonmp4(temp_path)
+            video_id = upload_result.get('video_id')
+            streamtape_id = f"anon:{video_id}"
+            flash(f"Успешно качване в AnonMP4! Video ID: {video_id}", 'success')
+        except AnonMP4APIError as e:
+            flash(f"Грешка при AnonMP4 API: {str(e)}", 'danger')
+            return redirect(url_for('admin_dashboard'))
+        except Exception as e:
+            flash(f"Неочаквана грешка при качване в AnonMP4: {str(e)}", 'danger')
+            return redirect(url_for('admin_dashboard'))
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+    elif upload_method == 'api_upload':
         # Method 2: Automatic upload to Streamtape API
         if 'video_file' not in request.files:
             flash('Не е избран видео файл за качване!', 'danger')
@@ -472,12 +514,12 @@ def admin_add_media():
                 except Exception:
                     pass
     else:
-        # Method 1: Manual entry
+        # Method 1: Manual entry (Streamtape or AnonMP4)
         raw_streamtape_input = request.form.get('streamtape_id', '').strip()
         streamtape_id = extract_streamtape_id(raw_streamtape_input)
 
         if media_type == 'movie' and not streamtape_id:
-            flash('За филм е необходимо да въведете валиден Streamtape ID или линк!', 'danger')
+            flash('За филм е необходимо да въведете валиден Streamtape или AnonMP4 ID / линк!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
     # Handle image file uploads
@@ -649,7 +691,32 @@ def admin_add_episode(media_id):
     upload_method = request.form.get('upload_method', 'manual')
     streamtape_id = None
 
-    if upload_method == 'api_upload':
+    if upload_method == 'anonmp4_upload':
+        file = request.files.get('anon_video_file') or request.files.get('video_file')
+        if not file or file.filename == '':
+            flash('Моля, изберете видео файл за качване!', 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+        if not allowed_file(file.filename):
+            flash('Неразрешен формат на видео файла.', 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+
+        safe_name = secure_filename(file.filename)
+        temp_path = os.path.join(TEMP_DIR, f"ep_anon_{int(datetime.now().timestamp())}_{safe_name}")
+
+        try:
+            file.save(temp_path)
+            upload_result = upload_to_anonmp4(temp_path)
+            streamtape_id = f"anon:{upload_result.get('video_id')}"
+        except Exception as e:
+            flash(f"Грешка при качване на епизода в AnonMP4: {str(e)}", 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+    elif upload_method == 'api_upload':
         if 'video_file' not in request.files or request.files['video_file'].filename == '':
             flash('Моля, изберете видео файл за качване!', 'danger')
             return redirect(url_for('admin_manage_episodes', media_id=media.id))
@@ -685,7 +752,7 @@ def admin_add_episode(media_id):
         streamtape_id = extract_streamtape_id(raw_input)
 
     if not streamtape_id:
-        flash('Необходим е валиден Streamtape ID или линк за епизода!', 'danger')
+        flash('Необходим е валиден Streamtape или AnonMP4 ID / линк за епизода!', 'danger')
         return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
     new_ep = Episode(

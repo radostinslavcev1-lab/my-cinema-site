@@ -80,11 +80,14 @@
 
     <!-- Upload Method Segmented Switcher -->
     <div class="method-switch-container">
+      <button type="button" id="methodAnonBtn" class="method-btn">
+        ⚡ Метод 1: AnonMP4 (Качване до 20 GB)
+      </button>
       <button type="button" id="methodManualBtn" class="method-btn active">
-        ✍️ Метод 1: Ръчно въвеждане (Streamtape ID / Линк)
+        ✍️ Метод 2: Ръчен линк / ID (Streamtape или AnonMP4)
       </button>
       <button type="button" id="methodApiBtn" class="method-btn">
-        🚀 Метод 2: Автоматично качване към Streamtape (API)
+        🚀 Метод 3: Streamtape API качване
       </button>
     </div>
 
@@ -228,31 +231,57 @@
           ></textarea>
         </div>
 
-        <!-- METHOD 1 FIELDS: Manual Entry -->
+        <!-- METHOD 1 FIELDS: AnonMP4 Upload (up to 20 GB) -->
+        <div id="anonUploadFields" class="form-group full-width" style="display: none; margin-top: 10px;">
+          <label>Локален видео файл за качване към AnonMP4 (до 20 GB, безплатно, без регистрация)</label>
+          
+          <div class="file-upload-box" id="anonUploadBox">
+            <div class="file-upload-icon">⚡</div>
+            <h4 style="margin-bottom: 6px;">Плъзнете видео файла тук или кликнете за избор</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">
+              Поддържани формати: .mp4, .mkv, .avi, .mov, .webm (до 20 GB без регистрация)
+            </p>
+            <input type="file" id="anonFileInput" name="anon_file" accept=".mp4,.mkv,.avi,.mov,.webm,.flv,.m4v">
+            <div id="anonFileSelectedName" class="file-selected-name"></div>
+          </div>
+
+          <!-- AnonMP4 Upload Progress Bar Indicator -->
+          <div id="anonProgressWrapper" class="upload-progress-wrapper" style="display: none; margin-top: 14px;">
+            <div class="progress-bar-bg">
+              <div id="anonProgressBarFill" class="progress-bar-fill"></div>
+            </div>
+            <div class="progress-status-text">
+              <span id="anonProgressStatusDetail">Качване към AnonMP4...</span>
+              <span id="anonProgressTextPercent" style="font-weight: 700; color: var(--accent-red);">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 2 FIELDS: Manual Entry (Streamtape or AnonMP4) -->
         <div id="manualFields" class="form-group full-width" style="margin-top: 10px;">
           <div id="movieStreamtapeGroup">
-            <label for="streamtape_id">Streamtape Video ID или пълен линк *</label>
+            <label for="streamtape_id">Video ID или пълен линк (AnonMP4 или Streamtape) *</label>
             <input 
               type="text" 
               id="streamtape_id" 
               name="streamtape_id" 
               class="form-control" 
-              placeholder="Напр.: 683wVpQp71s9XbZ или https://streamtape.com/v/683wVpQp71s9XbZ/..."
+              placeholder="Напр.: https://anonmp4.to/v/NLEusIzEvLs3s3B или https://streamtape.com/v/683wVpQp71s9XbZ/..."
             >
             <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              Системата автоматично ще извлече чистия Video ID от всеки валиден Streamtape линк (embed, watch, v, e).
+              Системата автоматично ще разпознае дали линкът е от AnonMP4 или Streamtape и ще конфигурира плейъра.
             </small>
           </div>
 
           <div id="seriesNoticeGroup" style="display: none; padding: 14px; background: var(--bg-main); border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
             <p style="color: var(--accent-purple); font-weight: 600; margin-bottom: 4px;">📺 Сериал: Добавяне на епизоди</p>
             <p style="color: var(--text-muted); font-size: 0.85rem;">
-              Ако попълните полето за Streamtape линк по-горе, то ще бъде записано като <strong>Сезон 1, Епизод 1</strong>. След създаване на сериала, ще бъдете пренасочени към специалния панел за управление и добавяне на следващите епизоди.
+              Ако попълните полето за линк или качите видео по-горе, то ще бъде записано като <strong>Сезон 1, Епизод 1</strong>. След създаване на сериала, ще можете да качите и останалите епизоди.
             </p>
           </div>
         </div>
 
-        <!-- METHOD 2 FIELDS: Automatic 2-Step API Upload -->
+        <!-- METHOD 3 FIELDS: Automatic Streamtape API Upload -->
         <div id="apiUploadFields" class="form-group full-width" style="display: none; margin-top: 10px;">
           <label>Локален видео файл за автоматично качване към Streamtape (.mp4, .mkv, .avi, .mov)</label>
           

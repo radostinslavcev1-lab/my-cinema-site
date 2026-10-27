@@ -131,14 +131,18 @@
 
         {% if item.media_type == 'movie' %}
           <div class="form-group" style="grid-column: span 2;">
-            <label for="streamtape_id">Streamtape Video ID или линк</label>
+            <label for="streamtape_id">Video ID или линк (Streamtape или AnonMP4)</label>
             <input 
               type="text" 
               id="streamtape_id" 
               name="streamtape_id" 
               class="form-control" 
+              placeholder="Напр.: https://anonmp4.to/v/... или https://streamtape.com/v/... или ID"
               value="{{ item.streamtape_id if item.streamtape_id else '' }}"
             >
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+              Поддържа линкове от AnonMP4 (anonmp4.to/v/... или anon:ID) и Streamtape (streamtape.com/v/...).
+            </small>
           </div>
         {% else %}
           <div class="form-group" style="grid-column: span 2;">

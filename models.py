@@ -3,10 +3,40 @@ from datetime import datetime
 from database import db
 
 
+def resolve_embed_url(video_identifier: str) -> str:
+    """
+    Resolves video identifier or URL to a playable iframe embed URL.
+    Supports both Streamtape and AnonMP4.
+    """
+    if not video_identifier:
+        return None
+    val = video_identifier.strip()
+    if val.startswith('http://') or val.startswith('https://'):
+        if 'anonmp4.to/v/' in val:
+            return val.replace('anonmp4.to/v/', 'anonmp4.to/embed/')
+        if 'streamtape.com/v/' in val:
+            return val.replace('streamtape.com/v/', 'streamtape.com/e/')
+        return val
+    if val.startswith('anon:') or val.startswith('anonmp4:'):
+        clean_id = val.split(':', 1)[1].strip()
+        return f"https://anonmp4.to/embed/{clean_id}"
+    return f"https://streamtape.com/e/{val}/"
+
+
+def get_server_name(video_identifier: str) -> str:
+    """Returns human-readable name of the streaming server."""
+    if not video_identifier:
+        return "Cloud Stream"
+    val = video_identifier.strip()
+    if 'anonmp4' in val or val.startswith('anon:') or val.startswith('anonmp4:'):
+        return "AnonMP4 Cloud"
+    return "Streamtape Cloud"
+
+
 class MediaItem(db.Model):
     """
     Represents a movie or a TV series in the catalog.
-    For movies: streamtape_id stores the direct video identifier.
+    For movies: streamtape_id stores the direct video identifier (Streamtape or AnonMP4).
     For series: episodes relationship stores individual season/episode streamtape_ids.
     """
     __tablename__ = 'media_items'
@@ -21,7 +51,7 @@ class MediaItem(db.Model):
     backdrop_url = db.Column(db.String(500), nullable=True)  # Wide 16:9 banner image for Hero section
     is_featured = db.Column(db.Boolean, default=False, index=True)  # Pinned to Hero Banner
     media_type = db.Column(db.String(20), nullable=False, default='movie', index=True)  # 'movie' or 'series'
-    streamtape_id = db.Column(db.String(100), nullable=True)  # Used when media_type == 'movie'
+    streamtape_id = db.Column(db.String(100), nullable=True)  # Video ID or anon:ID
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     # Relationship to episodes (only applicable when media_type == 'series')
@@ -35,10 +65,12 @@ class MediaItem(db.Model):
 
     @property
     def embed_url(self):
-        """Returns the Streamtape iframe embed URL for movies."""
-        if self.streamtape_id:
-            return f"https://streamtape.com/e/{self.streamtape_id}/"
-        return None
+        """Returns the iframe embed URL for movies (Streamtape or AnonMP4)."""
+        return resolve_embed_url(self.streamtape_id)
+
+    @property
+    def server_name(self):
+        return get_server_name(self.streamtape_id)
 
     @property
     def safe_poster_url(self):
@@ -123,7 +155,12 @@ class Episode(db.Model):
 
     @property
     def embed_url(self):
-        return f"https://streamtape.com/e/{self.streamtape_id}/"
+        """Returns the iframe embed URL for episode (Streamtape or AnonMP4)."""
+        return resolve_embed_url(self.streamtape_id)
+
+    @property
+    def server_name(self):
+        return get_server_name(self.streamtape_id)
 
     @property
     def display_code(self):

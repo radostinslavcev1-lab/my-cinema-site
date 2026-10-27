@@ -147,13 +147,21 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const streamtapeId = btn.dataset.streamtapeId;
+        const embedUrl = btn.dataset.embedUrl || (streamtapeId ? `https://streamtape.com/e/${streamtapeId}/` : '');
+        const serverName = btn.dataset.serverName || 'Cloud Stream';
         const episodeId = btn.dataset.episodeId;
         const episodeTitle = btn.dataset.episodeTitle;
 
-        if (!streamtapeId) return;
+        if (!embedUrl && !streamtapeId) return;
 
         // Update iframe source
-        playerIframe.src = `https://streamtape.com/e/${streamtapeId}/`;
+        playerIframe.src = embedUrl;
+
+        // Update active streaming server name if present
+        const activeServerEl = document.getElementById('activeServerName');
+        if (activeServerEl && serverName) {
+          activeServerEl.textContent = serverName;
+        }
 
         // Update active class
         episodeButtons.forEach(b => b.classList.remove('active'));
@@ -213,36 +221,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 4. ADMIN PANEL: METHOD TOGGLE (MANUAL vs API UPLOAD)
+  // 4. ADMIN PANEL: METHOD TOGGLE (ANONMP4 vs MANUAL vs STREAMTAPE API)
   // ========================================================
+  const methodAnonBtn = document.getElementById('methodAnonBtn');
   const methodManualBtn = document.getElementById('methodManualBtn');
   const methodApiBtn = document.getElementById('methodApiBtn');
   const uploadMethodInput = document.getElementById('uploadMethodInput');
+  const anonUploadFields = document.getElementById('anonUploadFields');
   const manualFields = document.getElementById('manualFields');
   const apiUploadFields = document.getElementById('apiUploadFields');
   const mediaTypeSelect = document.getElementById('mediaTypeSelect');
   const movieStreamtapeGroup = document.getElementById('movieStreamtapeGroup');
   const seriesNoticeGroup = document.getElementById('seriesNoticeGroup');
 
-  if (methodManualBtn && methodApiBtn && uploadMethodInput) {
-    methodManualBtn.addEventListener('click', () => {
-      methodManualBtn.classList.add('active');
-      methodApiBtn.classList.remove('active');
-      uploadMethodInput.value = 'manual';
+  function setUploadMethod(method) {
+    if (uploadMethodInput) uploadMethodInput.value = method;
+    [methodAnonBtn, methodManualBtn, methodApiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+    if (anonUploadFields) anonUploadFields.style.display = (method === 'anonmp4_upload') ? 'block' : 'none';
+    if (manualFields) manualFields.style.display = (method === 'manual') ? 'block' : 'none';
+    if (apiUploadFields) apiUploadFields.style.display = (method === 'api_upload') ? 'block' : 'none';
 
-      if (manualFields) manualFields.style.display = 'block';
-      if (apiUploadFields) apiUploadFields.style.display = 'none';
-    });
-
-    methodApiBtn.addEventListener('click', () => {
-      methodApiBtn.classList.add('active');
-      methodManualBtn.classList.remove('active');
-      uploadMethodInput.value = 'api_upload';
-
-      if (manualFields) manualFields.style.display = 'none';
-      if (apiUploadFields) apiUploadFields.style.display = 'block';
-    });
+    if (method === 'anonmp4_upload' && methodAnonBtn) methodAnonBtn.classList.add('active');
+    if (method === 'manual' && methodManualBtn) methodManualBtn.classList.add('active');
+    if (method === 'api_upload' && methodApiBtn) methodApiBtn.classList.add('active');
   }
+
+  if (methodAnonBtn) methodAnonBtn.addEventListener('click', () => setUploadMethod('anonmp4_upload'));
+  if (methodManualBtn) methodManualBtn.addEventListener('click', () => setUploadMethod('manual'));
+  if (methodApiBtn) methodApiBtn.addEventListener('click', () => setUploadMethod('api_upload'));
 
   // Handle media type change (movie vs series)
   if (mediaTypeSelect) {
@@ -261,8 +267,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 5. FILE UPLOAD DROP-ZONE & PROGRESS BAR
+  // 5. FILE UPLOAD DROP-ZONES (ANONMP4 & STREAMTAPE)
   // ========================================================
+  
+  // AnonMP4 Drop Zone
+  const anonDropBox = document.getElementById('anonUploadBox');
+  const anonFileInput = document.getElementById('anonFileInput');
+  const anonFileSelectedName = document.getElementById('anonFileSelectedName');
+
+  if (anonDropBox && anonFileInput) {
+    anonDropBox.addEventListener('click', () => anonFileInput.click());
+
+    ['dragenter', 'dragover'].forEach(name => {
+      anonDropBox.addEventListener(name, (e) => {
+        e.preventDefault();
+        anonDropBox.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      anonDropBox.addEventListener(name, (e) => {
+        e.preventDefault();
+        anonDropBox.classList.remove('dragover');
+      });
+    });
+
+    anonDropBox.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length > 0) {
+        anonFileInput.files = e.dataTransfer.files;
+        updateAnonFileInfo(anonFileInput.files[0]);
+      }
+    });
+
+    anonFileInput.addEventListener('change', () => {
+      if (anonFileInput.files.length > 0) {
+        updateAnonFileInfo(anonFileInput.files[0]);
+      }
+    });
+
+    function updateAnonFileInfo(file) {
+      if (!file) return;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      if (anonFileSelectedName) {
+        anonFileSelectedName.innerHTML = `✓ Избран файл за AnonMP4: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
+      }
+    }
+  }
+
+  // Streamtape Drop Zone
   const dropBox = document.getElementById('fileUploadBox');
   const fileInput = document.getElementById('videoFileInput');
   const fileSelectedName = document.getElementById('fileSelectedName');
@@ -311,6 +363,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Helper for Direct Browser-to-AnonMP4 Upload (up to 20 GB)
+  function uploadDirectToAnonMP4(file, onProgress, onStatus) {
+    if (onStatus) onStatus('Свързване с AnonMP4 сървъра...');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const fd = new FormData();
+      fd.append('file', file);
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(e.loaded, e.total);
+        }
+      });
+
+      xhr.onload = () => {
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          if ((resp.success || resp.status === 'active') && resp.video_id) {
+            resolve(resp.video_id);
+          } else if (resp.error && resp.error.message) {
+            reject(new Error(resp.error.message));
+          } else {
+            reject(new Error(resp.message || 'AnonMP4 не върна Video ID.'));
+          }
+        } catch (err) {
+          reject(new Error('Невалиден отговор от сървъра на AnonMP4.'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Мрежова грешка при трансфера на видеото към AnonMP4.'));
+      };
+
+      xhr.timeout = 3600000; // 1 hour max
+      xhr.ontimeout = () => {
+        reject(new Error('Времето за качване към AnonMP4 изтече.'));
+      };
+
+      xhr.open('POST', 'https://anonmp4api.xyz/upload');
+      xhr.send(fd);
+    });
+  }
+
   // Helper for Direct Browser-to-Streamtape Cloud Upload
   async function uploadDirectToStreamtape(file, onProgress, onStatus) {
     onStatus('Свързване със Streamtape API за уникален адрес за качване...');
@@ -355,58 +450,105 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Upload with Progress Bar for Movies / Series (adminAddForm)
-  if (adminAddForm && progressWrapper && progressBarFill) {
+  if (adminAddForm) {
     adminAddForm.addEventListener('submit', async (e) => {
-      const isApiUpload = uploadMethodInput && uploadMethodInput.value === 'api_upload';
-      if (!isApiUpload) return; // Allow normal manual submission
+      const currentMethod = uploadMethodInput ? uploadMethodInput.value : 'manual';
 
-      const file = fileInput ? fileInput.files[0] : null;
-      if (!file) return;
+      // 1. AnonMP4 Upload
+      if (currentMethod === 'anonmp4_upload') {
+        const file = anonFileInput ? anonFileInput.files[0] : null;
+        if (!file) return; // Fallback to normal submit (will trigger validation)
 
-      e.preventDefault();
+        e.preventDefault();
+        const anonProgWrap = document.getElementById('anonProgressWrapper');
+        const anonProgFill = document.getElementById('anonProgressBarFill');
+        const anonProgPercent = document.getElementById('anonProgressTextPercent');
+        const anonProgStatus = document.getElementById('anonProgressStatusDetail');
 
-      // Show progress UI
-      progressWrapper.style.display = 'block';
-      progressBarFill.style.width = '0%';
-      progressTextPercent.textContent = '0%';
-      progressStatusDetail.textContent = 'Инициализиране...';
+        if (anonProgWrap) anonProgWrap.style.display = 'block';
+        if (anonProgFill) anonProgFill.style.width = '0%';
+        if (anonProgPercent) anonProgPercent.textContent = '0%';
+        if (anonProgStatus) anonProgStatus.textContent = 'Инициализиране на качването към AnonMP4...';
 
-      try {
-        const streamtapeId = await uploadDirectToStreamtape(
-          file,
-          (loaded, total) => {
-            const percent = Math.round((loaded / total) * 100);
-            progressBarFill.style.width = `${percent}%`;
-            progressTextPercent.textContent = `${percent}%`;
-            const upMB = (loaded / (1024 * 1024)).toFixed(1);
-            const totMB = (total / (1024 * 1024)).toFixed(1);
-            progressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
-          },
-          (statusText) => {
-            progressStatusDetail.textContent = statusText;
+        try {
+          const videoId = await uploadDirectToAnonMP4(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (anonProgFill) anonProgFill.style.width = `${percent}%`;
+              if (anonProgPercent) anonProgPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (anonProgStatus) anonProgStatus.textContent = `Качване в AnonMP4: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (anonProgStatus) anonProgStatus.textContent = statusText;
+            }
+          );
+
+          if (anonProgStatus) anonProgStatus.textContent = 'Качването в AnonMP4 завърши успешно! Публикуване...';
+
+          // Set identifier
+          let streamtapeIdInput = document.getElementById('streamtape_id');
+          if (streamtapeIdInput) {
+            streamtapeIdInput.value = `anon:${videoId}`;
           }
-        );
 
-        progressStatusDetail.textContent = 'Качването завърши успешно! Записване в каталога...';
+          // Switch to manual to avoid re-uploading file bytes to Render
+          uploadMethodInput.value = 'manual';
+          anonFileInput.value = '';
 
-        // Auto populate streamtape_id input and submit lightweight metadata
-        let streamtapeIdInput = document.getElementById('streamtape_id');
-        if (streamtapeIdInput) {
-          streamtapeIdInput.value = streamtapeId;
+          adminAddForm.submit();
+        } catch (err) {
+          if (anonProgStatus) anonProgStatus.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при директно качване към AnonMP4: ' + err.message + '\n\nСъвет: Можете да качите видеото директно в AnonMP4 и да поставите получения линк в Метод 2 (Ръчно въвеждане).');
         }
+        return;
+      }
 
-        // Switch method to manual so backend doesn't re-upload
-        uploadMethodInput.value = 'manual';
+      // 2. Streamtape API Upload
+      if (currentMethod === 'api_upload') {
+        const file = fileInput ? fileInput.files[0] : null;
+        if (!file) return;
 
-        // Clear file input so huge video is NOT re-sent to Render!
-        fileInput.value = '';
+        e.preventDefault();
 
-        // Submit form with metadata
-        adminAddForm.submit();
+        if (progressWrapper) progressWrapper.style.display = 'block';
+        if (progressBarFill) progressBarFill.style.width = '0%';
+        if (progressTextPercent) progressTextPercent.textContent = '0%';
+        if (progressStatusDetail) progressStatusDetail.textContent = 'Инициализиране...';
 
-      } catch (err) {
-        progressStatusDetail.textContent = 'Грешка: ' + err.message;
-        alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно на Streamtape.com и да въведете линка в Метод 1 (Ръчно въвеждане).');
+        try {
+          const streamtapeId = await uploadDirectToStreamtape(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+              if (progressTextPercent) progressTextPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (progressStatusDetail) progressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (progressStatusDetail) progressStatusDetail.textContent = statusText;
+            }
+          );
+
+          if (progressStatusDetail) progressStatusDetail.textContent = 'Качването завърши успешно! Записване в каталога...';
+
+          let streamtapeIdInput = document.getElementById('streamtape_id');
+          if (streamtapeIdInput) {
+            streamtapeIdInput.value = streamtapeId;
+          }
+
+          uploadMethodInput.value = 'manual';
+          fileInput.value = '';
+
+          adminAddForm.submit();
+        } catch (err) {
+          if (progressStatusDetail) progressStatusDetail.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно на Streamtape.com и да въведете линка в Метод 2 (Ръчен линк).');
+        }
       }
     });
   }
@@ -419,63 +561,122 @@ document.addEventListener('DOMContentLoaded', () => {
   const epProgressStatusDetail = document.getElementById('epProgressStatusDetail');
   const epUploadMethodInput = document.getElementById('epUploadMethodInput');
   const epVideoFile = document.getElementById('epVideoFile');
+  const epAnonVideoFile = document.getElementById('epAnonVideoFile');
+  const epAnonProgressWrapper = document.getElementById('epAnonProgressWrapper');
+  const epAnonProgressBarFill = document.getElementById('epAnonProgressBarFill');
+  const epAnonProgressTextPercent = document.getElementById('epAnonProgressTextPercent');
+  const epAnonProgressStatusDetail = document.getElementById('epAnonProgressStatusDetail');
   const epSubmitBtn = document.getElementById('epSubmitBtn');
 
-  if (adminEpisodeForm && epProgressWrapper && epProgressBarFill) {
+  if (adminEpisodeForm) {
     adminEpisodeForm.addEventListener('submit', async (e) => {
-      const isApiUpload = epUploadMethodInput && epUploadMethodInput.value === 'api_upload';
-      if (!isApiUpload) return; // Allow manual link submission
+      const currentMethod = epUploadMethodInput ? epUploadMethodInput.value : 'manual';
 
-      const file = epVideoFile ? epVideoFile.files[0] : null;
-      if (!file) return;
+      // 1. Episode AnonMP4 Upload
+      if (currentMethod === 'anonmp4_upload') {
+        const file = epAnonVideoFile ? epAnonVideoFile.files[0] : null;
+        if (!file) return;
 
-      e.preventDefault();
+        e.preventDefault();
 
-      epProgressWrapper.style.display = 'block';
-      epProgressBarFill.style.width = '0%';
-      epProgressTextPercent.textContent = '0%';
-      epProgressStatusDetail.textContent = 'Инициализиране...';
-      if (epSubmitBtn) {
-        epSubmitBtn.disabled = true;
-        epSubmitBtn.textContent = '⏳ Качване в Streamtape...';
-      }
-
-      try {
-        const streamtapeId = await uploadDirectToStreamtape(
-          file,
-          (loaded, total) => {
-            const percent = Math.round((loaded / total) * 100);
-            epProgressBarFill.style.width = `${percent}%`;
-            epProgressTextPercent.textContent = `${percent}%`;
-            const upMB = (loaded / (1024 * 1024)).toFixed(1);
-            const totMB = (total / (1024 * 1024)).toFixed(1);
-            epProgressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
-          },
-          (statusText) => {
-            epProgressStatusDetail.textContent = statusText;
-          }
-        );
-
-        epProgressStatusDetail.textContent = 'Видео файлът е в Streamtape! Записване на епизода...';
-
-        // Set streamtape_id in input
-        const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
-        if (epStreamtapeInput) {
-          epStreamtapeInput.value = streamtapeId;
+        if (epAnonProgressWrapper) epAnonProgressWrapper.style.display = 'block';
+        if (epAnonProgressBarFill) epAnonProgressBarFill.style.width = '0%';
+        if (epAnonProgressTextPercent) epAnonProgressTextPercent.textContent = '0%';
+        if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Инициализиране...';
+        if (epSubmitBtn) {
+          epSubmitBtn.disabled = true;
+          epSubmitBtn.textContent = '⏳ Качване в AnonMP4...';
         }
 
-        // Switch to manual and clear video file so Render receives 0 MB video!
-        epUploadMethodInput.value = 'manual';
-        epVideoFile.value = '';
+        try {
+          const videoId = await uploadDirectToAnonMP4(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (epAnonProgressBarFill) epAnonProgressBarFill.style.width = `${percent}%`;
+              if (epAnonProgressTextPercent) epAnonProgressTextPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = `Качване в AnonMP4: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = statusText;
+            }
+          );
 
-        adminEpisodeForm.submit();
+          if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Видео файлът е в AnonMP4! Записване на епизода...';
 
-      } catch (err) {
-        epProgressStatusDetail.textContent = 'Грешка: ' + err.message;
-        alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно в Streamtape.com и да поставите получения линк в полето.');
+          const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
+          if (epStreamtapeInput) {
+            epStreamtapeInput.value = `anon:${videoId}`;
+          }
+
+          epUploadMethodInput.value = 'manual';
+          epAnonVideoFile.value = '';
+
+          adminEpisodeForm.submit();
+        } catch (err) {
+          if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при качване в AnonMP4: ' + err.message + '\n\nСъвет: Можете да качите видеото и да поставите получения линк в Ръчен линк / ID.');
+          if (epSubmitBtn) {
+            epSubmitBtn.disabled = false;
+            epSubmitBtn.textContent = '💾 Добави епизода';
+          }
+        }
+        return;
+      }
+
+      // 2. Episode Streamtape API Upload
+      if (currentMethod === 'api_upload') {
+        const file = epVideoFile ? epVideoFile.files[0] : null;
+        if (!file) return;
+
+        e.preventDefault();
+
+        if (epProgressWrapper) epProgressWrapper.style.display = 'block';
+        if (epProgressBarFill) epProgressBarFill.style.width = '0%';
+        if (epProgressTextPercent) epProgressTextPercent.textContent = '0%';
+        if (epProgressStatusDetail) epProgressStatusDetail.textContent = 'Инициализиране...';
         if (epSubmitBtn) {
-          epSubmitBtn.disabled = false;
-          epSubmitBtn.textContent = '💾 Добави епизода';
+          epSubmitBtn.disabled = true;
+          epSubmitBtn.textContent = '⏳ Качване в Streamtape...';
+        }
+
+        try {
+          const streamtapeId = await uploadDirectToStreamtape(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (epProgressBarFill) epProgressBarFill.style.width = `${percent}%`;
+              if (epProgressTextPercent) epProgressTextPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (epProgressStatusDetail) epProgressStatusDetail.textContent = `Качване в Streamtape: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (epProgressStatusDetail) epProgressStatusDetail.textContent = statusText;
+            }
+          );
+
+          if (epProgressStatusDetail) epProgressStatusDetail.textContent = 'Видео файлът е в Streamtape! Записване на епизода...';
+
+          const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
+          if (epStreamtapeInput) {
+            epStreamtapeInput.value = streamtapeId;
+          }
+
+          epUploadMethodInput.value = 'manual';
+          epVideoFile.value = '';
+
+          adminEpisodeForm.submit();
+
+        } catch (err) {
+          if (epProgressStatusDetail) epProgressStatusDetail.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при качване: ' + err.message + '\n\nСъвет: Можете да качите видеото директно в Streamtape.com и да поставите получения линк в полето.');
+          if (epSubmitBtn) {
+            epSubmitBtn.disabled = false;
+            epSubmitBtn.textContent = '💾 Добави епизода';
+          }
         }
       }
     });

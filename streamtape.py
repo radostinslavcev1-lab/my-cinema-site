@@ -15,20 +15,28 @@ class StreamtapeAPIError(Exception):
 
 def extract_streamtape_id(raw_value: str) -> str:
     """
-    Extracts the clean Streamtape video ID from various link formats or raw ID strings.
+    Extracts the clean video ID (Streamtape or AnonMP4) from various link formats or raw ID strings.
     Supported examples:
-      - https://streamtape.com/e/6w7qVbQqMphBq/
-      - https://streamtape.com/v/6w7qVbQqMphBq/my_movie.mp4
-      - https://streamta.pe/v/6w7qVbQqMphBq
-      - https://streamtape.net/e/6w7qVbQqMphBq
-      - 6w7qVbQqMphBq
+      - Streamtape: https://streamtape.com/e/6w7qVbQqMphBq/ -> 6w7qVbQqMphBq
+      - AnonMP4: https://anonmp4.to/v/NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
+      - AnonMP4: https://anonmp4.to/embed/NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
+      - anon:NLEusIzEvLs3s3B -> anon:NLEusIzEvLs3s3B
     """
     if not raw_value:
         return ""
 
     raw_value = raw_value.strip()
 
-    # Pattern for standard Streamtape embed or watch links
+    # 1. AnonMP4 links or tags
+    anon_pattern = r'(?:anonmp4\.(?:to|com|xyz|net))/(?:v|embed)/([a-zA-Z0-9_\-]+)'
+    anon_match = re.search(anon_pattern, raw_value, re.IGNORECASE)
+    if anon_match:
+        return f"anon:{anon_match.group(1)}"
+
+    if raw_value.startswith('anon:') or raw_value.startswith('anonmp4:'):
+        return raw_value
+
+    # 2. Pattern for standard Streamtape embed or watch links
     pattern = r'(?:streamtape\.[a-z]+|streamta\.pe)/(?:e|v)/([a-zA-Z0-9_\-]+)'
     match = re.search(pattern, raw_value, re.IGNORECASE)
     if match:
@@ -37,6 +45,9 @@ def extract_streamtape_id(raw_value: str) -> str:
     # In case user pasted an iframe src or full tag
     src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value)
     if src_match:
+        nested_anon = re.search(anon_pattern, src_match.group(1), re.IGNORECASE)
+        if nested_anon:
+            return f"anon:{nested_anon.group(1)}"
         nested_match = re.search(pattern, src_match.group(1), re.IGNORECASE)
         if nested_match:
             return nested_match.group(1)
@@ -46,7 +57,7 @@ def extract_streamtape_id(raw_value: str) -> str:
     if '/' in clean_val:
         clean_val = clean_val.split('/')[-1]
 
-    # Validate identifier format (usually alphanumeric with underscores/hyphens, length 8-25)
+    # Validate identifier format
     clean_val = clean_val.replace('.mp4', '').replace('.mkv', '').strip()
     return clean_val
 

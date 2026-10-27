@@ -34,11 +34,14 @@
 
       <!-- Method Switcher for Episode -->
       <div class="method-switch-container" style="margin-bottom: 18px;">
+        <button type="button" id="epMethodAnonBtn" class="method-btn" onclick="toggleEpMethod('anonmp4_upload')">
+          ⚡ AnonMP4 (20 GB)
+        </button>
         <button type="button" id="epMethodManualBtn" class="method-btn active" onclick="toggleEpMethod('manual')">
-          ✍️ Ръчен линк / ID
+          ✍️ Линк / ID
         </button>
         <button type="button" id="epMethodApiBtn" class="method-btn" onclick="toggleEpMethod('api_upload')">
-          🚀 Качи файл в Streamtape
+          🚀 Streamtape API
         </button>
       </div>
 
@@ -83,22 +86,48 @@
             >
           </div>
 
-          <!-- Method 1: Manual Streamtape Link / ID -->
+          <!-- Method 1: AnonMP4 Upload -->
+          <div id="epAnonGroup" class="form-group full-width" style="display: none;">
+            <label>Изберете видео файл за AnonMP4 (до 20 GB, безплатно)</label>
+            <input 
+              type="file" 
+              id="epAnonVideoFile" 
+              name="anon_video_file" 
+              class="form-control" 
+              accept=".mp4,.mkv,.avi,.mov,.webm"
+            >
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+              ⚡ Видеото се качва директно в AnonMP4 с поддръжка до 20 GB.
+            </small>
+
+            <!-- Episode Anon Progress Bar -->
+            <div id="epAnonProgressWrapper" class="upload-progress-wrapper" style="margin-top: 14px; display: none;">
+              <div class="progress-bar-bg">
+                <div id="epAnonProgressBarFill" class="progress-bar-fill"></div>
+              </div>
+              <div class="progress-status-text">
+                <span id="epAnonProgressStatusDetail">Качване към AnonMP4...</span>
+                <span id="epAnonProgressTextPercent" style="font-weight: 700; color: var(--accent-red);">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Method 2: Manual Streamtape or AnonMP4 Link / ID -->
           <div id="epManualGroup" class="form-group full-width">
-            <label for="streamtape_id">Streamtape Video ID или линк *</label>
+            <label for="streamtape_id">Streamtape или AnonMP4 линк / ID *</label>
             <input 
               type="text" 
               id="streamtape_id" 
               name="streamtape_id" 
               class="form-control" 
-              placeholder="Напр.: https://streamtape.com/v/abc123xyz"
+              placeholder="Напр.: https://anonmp4.to/v/NLEusIzEvLs3s3B или https://streamtape.com/v/..."
             >
             <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              💡 Можете директно да качите видеото в Streamtape.com и да поставите получения линк тук.
+              💡 Можете да поставите линк от AnonMP4 (anonmp4.to) или Streamtape (streamtape.com).
             </small>
           </div>
 
-          <!-- Method 2: API Video Upload -->
+          <!-- Method 3: API Video Upload -->
           <div id="epApiGroup" class="form-group full-width" style="display: none;">
             <label>Изберете видео файл на епизода (.mp4, .mkv, .avi)</label>
             <input 
@@ -187,24 +216,29 @@
 
 <script>
 function toggleEpMethod(method) {
+  const anonBtn = document.getElementById('epMethodAnonBtn');
   const manualBtn = document.getElementById('epMethodManualBtn');
   const apiBtn = document.getElementById('epMethodApiBtn');
   const methodInput = document.getElementById('epUploadMethodInput');
+  const anonGroup = document.getElementById('epAnonGroup');
   const manualGroup = document.getElementById('epManualGroup');
   const apiGroup = document.getElementById('epApiGroup');
 
-  if (method === 'api_upload') {
-    apiBtn.classList.add('active');
-    manualBtn.classList.remove('active');
+  [anonBtn, manualBtn, apiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [anonGroup, manualGroup, apiGroup].forEach(g => { if (g) g.style.display = 'none'; });
+
+  if (method === 'anonmp4_upload') {
+    if (anonBtn) anonBtn.classList.add('active');
+    methodInput.value = 'anonmp4_upload';
+    if (anonGroup) anonGroup.style.display = 'block';
+  } else if (method === 'api_upload') {
+    if (apiBtn) apiBtn.classList.add('active');
     methodInput.value = 'api_upload';
-    apiGroup.style.display = 'block';
-    manualGroup.style.display = 'none';
+    if (apiGroup) apiGroup.style.display = 'block';
   } else {
-    manualBtn.classList.add('active');
-    apiBtn.classList.remove('active');
+    if (manualBtn) manualBtn.classList.add('active');
     methodInput.value = 'manual';
-    manualGroup.style.display = 'block';
-    apiGroup.style.display = 'none';
+    if (manualGroup) manualGroup.style.display = 'block';
   }
 }
 </script>
