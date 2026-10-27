@@ -12,8 +12,8 @@ def resolve_embed_url(video_identifier: str) -> str:
         return None
     val = video_identifier.strip()
     if val.startswith('http://') or val.startswith('https://'):
-        if 'anonmp4.to/v/' in val:
-            return val.replace('anonmp4.to/v/', 'anonmp4.to/embed/')
+        if 'anonmp4.' in val and '/v/' in val:
+            return val.replace('/v/', '/embed/')
         if 'streamtape.com/v/' in val:
             return val.replace('streamtape.com/v/', 'streamtape.com/e/')
         return val

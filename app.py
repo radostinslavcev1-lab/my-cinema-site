@@ -818,6 +818,47 @@ def api_get_upload_url():
 
 
 # ==========================================
+# ANONMP4 DIRECT BROWSER UPLOAD API
+# ==========================================
+
+@app.route('/api/anonmp4/get-upload-node', methods=['GET', 'POST'])
+@login_required
+def api_anonmp4_get_upload_node():
+    """
+    Returns an upload node from AnonMP4 so the browser can stream
+    the video file directly to AnonMP4 Cloudflare Worker nodes.
+    """
+    filename = request.args.get('filename') or request.form.get('filename') or 'video.mp4'
+    try:
+        from anonmp4 import get_anonmp4_upload_node
+        data = get_anonmp4_upload_node(filename)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@app.route('/api/anonmp4/get-video-node', methods=['POST'])
+@login_required
+def api_anonmp4_get_video_node():
+    """
+    Finalizes the video upload on AnonMP4 and returns the resulting video_id and metadata.
+    """
+    node_id = request.form.get('node_id', '').strip()
+    node_token = request.form.get('node_token', '').strip()
+    filename = request.form.get('filename', 'video.mp4').strip()
+
+    if not node_id or not node_token:
+        return jsonify({'success': False, 'error': 'Липсват node_id или node_token.'}), 400
+
+    try:
+        from anonmp4 import get_anonmp4_video_info
+        data = get_anonmp4_video_info(node_id, node_token, filename)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ==========================================
 # DATABASE INITIALIZATION HELPER
 # ==========================================
 

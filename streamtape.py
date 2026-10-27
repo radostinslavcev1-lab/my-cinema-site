@@ -28,7 +28,7 @@ def extract_streamtape_id(raw_value: str) -> str:
     raw_value = raw_value.strip()
 
     # 1. AnonMP4 links or tags
-    anon_pattern = r'(?:anonmp4\.(?:to|com|xyz|net))/(?:v|embed)/([a-zA-Z0-9_\-]+)'
+    anon_pattern = r'(?:anonmp4\.(?:to|com|xyz|net|art))/(?:v|embed)/([a-zA-Z0-9_\-]+)'
     anon_match = re.search(anon_pattern, raw_value, re.IGNORECASE)
     if anon_match:
         return f"anon:{anon_match.group(1)}"

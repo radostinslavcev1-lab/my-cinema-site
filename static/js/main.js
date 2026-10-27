@@ -469,47 +469,87 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper for Direct Browser-to-AnonMP4 Upload (up to 20 GB)
-  function uploadDirectToAnonMP4(file, onProgress, onStatus) {
-    if (onStatus) onStatus('Свързване с AnonMP4 сървъра...');
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const fd = new FormData();
-      fd.append('file', file);
+  // Helper for Direct Browser-to-AnonMP4 Upload (up to 20 GB) via Cloudflare Worker
+  async function uploadDirectToAnonMP4(file, onProgress, onStatus) {
+    if (onStatus) onStatus('Свързване с AnonMP4 Cloud...');
 
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable && onProgress) {
-          onProgress(e.loaded, e.total);
-        }
+    // 1. Get dedicated upload node from backend
+    const nodeResp = await fetch(`/api/anonmp4/get-upload-node?filename=${encodeURIComponent(file.name)}`);
+    const nodeResult = await nodeResp.json();
+    if (!nodeResp.ok || !nodeResult.success || !nodeResult.data || !nodeResult.data.upload_url) {
+      throw new Error(nodeResult.error || 'Неуспешно свързване с AnonMP4 сървъра.');
+    }
+
+    const { upload_url, node_id, node_token } = nodeResult.data;
+
+    if (onStatus) onStatus('Директен облачен трансфер към AnonMP4...');
+
+    // 2. Upload file in 2MB chunks
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
+    let bytesUploaded = 0;
+
+    async function uploadSingleChunk(chunkIndex) {
+      const start = (chunkIndex - 1) * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const blob = file.slice(start, end);
+
+      const params = new URLSearchParams({
+        file_id: node_token,
+        chunkIndex: chunkIndex,
+        totalChunks: totalChunks,
+        filename: file.name
       });
 
-      xhr.onload = () => {
-        try {
-          const resp = JSON.parse(xhr.responseText);
-          if ((resp.success || resp.status === 'active') && resp.video_id) {
-            resolve(resp.video_id);
-          } else if (resp.error && resp.error.message) {
-            reject(new Error(resp.error.message));
-          } else {
-            reject(new Error(resp.message || 'AnonMP4 не върна Video ID.'));
-          }
-        } catch (err) {
-          reject(new Error('Невалиден отговор от сървъра на AnonMP4.'));
-        }
-      };
+      const res = await fetch(`${upload_url}?${params}`, {
+        method: 'POST',
+        headers: {
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
+          'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
+          'Content-Type': 'application/octet-stream',
+          'X-Uploading-Mode': 'parallel'
+        },
+        body: blob
+      });
 
-      xhr.onerror = () => {
-        reject(new Error('Мрежова грешка при трансфера на видеото към AnonMP4.'));
-      };
+      if (!res.ok) {
+        throw new Error(`Грешка при сегмент ${chunkIndex} от ${totalChunks}`);
+      }
 
-      xhr.timeout = 3600000; // 1 hour max
-      xhr.ontimeout = () => {
-        reject(new Error('Времето за качване към AnonMP4 изтече.'));
-      };
+      bytesUploaded += (end - start);
+      if (onProgress) {
+        onProgress(bytesUploaded, file.size);
+      }
+    }
 
-      xhr.open('POST', 'https://anonmp4api.xyz/upload');
-      xhr.send(fd);
+    // Upload in batches of 3 parallel chunks
+    const BATCH_SIZE = 3;
+    for (let i = 1; i <= totalChunks; i += BATCH_SIZE) {
+      const batch = [];
+      for (let j = i; j < i + BATCH_SIZE && j <= totalChunks; j++) {
+        batch.push(uploadSingleChunk(j));
+      }
+      await Promise.all(batch);
+    }
+
+    if (onStatus) onStatus('Финализиране и генериране на Video ID...');
+
+    // 3. Finalize and get video info from node
+    const finalizeFormData = new FormData();
+    finalizeFormData.append('node_id', node_id);
+    finalizeFormData.append('node_token', node_token);
+    finalizeFormData.append('filename', file.name);
+
+    const finResp = await fetch('/api/anonmp4/get-video-node', {
+      method: 'POST',
+      body: finalizeFormData
     });
+    const finRes = await finResp.json();
+    if (!finResp.ok || !finRes.success || !finRes.data || !finRes.data.video_id) {
+      throw new Error(finRes.error || 'Неуспешно финализиране на видеото в AnonMP4.');
+    }
+
+    return finRes.data.video_id;
   }
 
   // Helper for Direct Browser-to-Streamtape Cloud Upload
