@@ -167,10 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ensure Ad-Shield sandbox is maintained on episode switch
         applyAdShieldState(isAdShieldActive, false);
 
-        // Update iframe source with fresh cache-buster for AnonMP4
-        const separator = embedUrl.includes('?') ? '&' : '?';
-        const finalUrl = embedUrl.includes('anonmp4') ? `${embedUrl}${separator}_t=${Date.now()}` : embedUrl;
-        playerIframe.src = finalUrl;
+        // Update iframe source
+        playerIframe.src = embedUrl;
 
         // Update active streaming server name if present
         const activeServerEl = document.getElementById('activeServerName');
@@ -320,34 +318,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Reload player button with cache-busting to prevent expired session / used tickets
+  // Reload player button to refresh stream
   if (reloadPlayerBtn && playerIframe) {
     reloadPlayerBtn.addEventListener('click', () => {
       let currentSrc = playerIframe.src;
       if (!currentSrc || currentSrc === 'about:blank') return;
-      if (currentSrc.includes('anonmp4')) {
-        const base = currentSrc.split('?')[0];
-        playerIframe.src = `${base}?_t=${Date.now()}`;
-      } else {
-        playerIframe.src = 'about:blank';
-        setTimeout(() => {
-          playerIframe.src = currentSrc;
-        }, 60);
-      }
+      playerIframe.src = 'about:blank';
+      setTimeout(() => {
+        playerIframe.src = currentSrc;
+      }, 60);
     });
   }
 
 
   // ========================================================
-  // 4. ADMIN PANEL: METHOD TOGGLE (ABYSS vs ANONMP4 vs MANUAL vs STREAMTAPE API)
+  // 4. ADMIN PANEL: METHOD TOGGLE (ABYSS/HYDRAX vs MANUAL vs STREAMTAPE API)
   // ========================================================
   const methodAbyssBtn = document.getElementById('methodAbyssBtn');
-  const methodAnonBtn = document.getElementById('methodAnonBtn');
   const methodManualBtn = document.getElementById('methodManualBtn');
   const methodApiBtn = document.getElementById('methodApiBtn');
   const uploadMethodInput = document.getElementById('uploadMethodInput');
   const abyssUploadFields = document.getElementById('abyssUploadFields');
-  const anonUploadFields = document.getElementById('anonUploadFields');
   const manualFields = document.getElementById('manualFields');
   const apiUploadFields = document.getElementById('apiUploadFields');
   const mediaTypeSelect = document.getElementById('mediaTypeSelect');
@@ -356,20 +347,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setUploadMethod(method) {
     if (uploadMethodInput) uploadMethodInput.value = method;
-    [methodAbyssBtn, methodAnonBtn, methodManualBtn, methodApiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+    [methodAbyssBtn, methodManualBtn, methodApiBtn].forEach(b => { if (b) b.classList.remove('active'); });
     if (abyssUploadFields) abyssUploadFields.style.display = (method === 'abyss_upload') ? 'block' : 'none';
-    if (anonUploadFields) anonUploadFields.style.display = (method === 'anonmp4_upload') ? 'block' : 'none';
     if (manualFields) manualFields.style.display = (method === 'manual') ? 'block' : 'none';
     if (apiUploadFields) apiUploadFields.style.display = (method === 'api_upload') ? 'block' : 'none';
 
     if (method === 'abyss_upload' && methodAbyssBtn) methodAbyssBtn.classList.add('active');
-    if (method === 'anonmp4_upload' && methodAnonBtn) methodAnonBtn.classList.add('active');
     if (method === 'manual' && methodManualBtn) methodManualBtn.classList.add('active');
     if (method === 'api_upload' && methodApiBtn) methodApiBtn.classList.add('active');
   }
 
   if (methodAbyssBtn) methodAbyssBtn.addEventListener('click', () => setUploadMethod('abyss_upload'));
-  if (methodAnonBtn) methodAnonBtn.addEventListener('click', () => setUploadMethod('anonmp4_upload'));
   if (methodManualBtn) methodManualBtn.addEventListener('click', () => setUploadMethod('manual'));
   if (methodApiBtn) methodApiBtn.addEventListener('click', () => setUploadMethod('api_upload'));
 
@@ -384,8 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.includes('hydrax') || val.startsWith('abyss:') || val.startsWith('hydrax:')) {
         select.value = 'abyss';
-      } else if (val.includes('anonmp4') || val.startsWith('anon:') || val.startsWith('anonmp4:')) {
-        select.value = 'anonmp4';
       } else if (val.includes('streamtape') || val.includes('streamta.pe')) {
         select.value = 'streamtape';
       }
@@ -409,10 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 5. FILE UPLOAD DROP-ZONES (ABYSS.TO, ANONMP4 & STREAMTAPE)
+  // 5. FILE UPLOAD DROP-ZONES (ABYSS / HYDRAX & STREAMTAPE)
   // ========================================================
   
-  // Abyss.to Drop Zone
+  // Abyss.to / Hydrax Drop Zone
   const abyssDropBox = document.getElementById('abyssUploadBox');
   const abyssFileInput = document.getElementById('abyssFileInput');
   const abyssFileSelectedName = document.getElementById('abyssFileSelectedName');
@@ -451,51 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
       if (abyssFileSelectedName) {
-        abyssFileSelectedName.innerHTML = `✓ Избран файл за Abyss.to: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
-      }
-    }
-  }
-
-  // AnonMP4 Drop Zone
-  const anonDropBox = document.getElementById('anonUploadBox');
-  const anonFileInput = document.getElementById('anonFileInput');
-  const anonFileSelectedName = document.getElementById('anonFileSelectedName');
-
-  if (anonDropBox && anonFileInput) {
-    anonDropBox.addEventListener('click', () => anonFileInput.click());
-
-    ['dragenter', 'dragover'].forEach(name => {
-      anonDropBox.addEventListener(name, (e) => {
-        e.preventDefault();
-        anonDropBox.classList.add('dragover');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach(name => {
-      anonDropBox.addEventListener(name, (e) => {
-        e.preventDefault();
-        anonDropBox.classList.remove('dragover');
-      });
-    });
-
-    anonDropBox.addEventListener('drop', (e) => {
-      if (e.dataTransfer.files.length > 0) {
-        anonFileInput.files = e.dataTransfer.files;
-        updateAnonFileInfo(anonFileInput.files[0]);
-      }
-    });
-
-    anonFileInput.addEventListener('change', () => {
-      if (anonFileInput.files.length > 0) {
-        updateAnonFileInfo(anonFileInput.files[0]);
-      }
-    });
-
-    function updateAnonFileInfo(file) {
-      if (!file) return;
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      if (anonFileSelectedName) {
-        anonFileSelectedName.innerHTML = `✓ Избран файл за AnonMP4: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
+        abyssFileSelectedName.innerHTML = `✓ Избран файл за Abyss / Hydrax: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
       }
     }
   }
@@ -547,89 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fileSelectedName.innerHTML = `✓ Избран файл: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
       }
     }
-  }
-
-  // Helper for Direct Browser-to-AnonMP4 Upload (up to 20 GB) via Cloudflare Worker
-  async function uploadDirectToAnonMP4(file, onProgress, onStatus) {
-    if (onStatus) onStatus('Свързване с AnonMP4 Cloud...');
-
-    // 1. Get dedicated upload node from backend
-    const nodeResp = await fetch(`/api/anonmp4/get-upload-node?filename=${encodeURIComponent(file.name)}`);
-    const nodeResult = await nodeResp.json();
-    if (!nodeResp.ok || !nodeResult.success || !nodeResult.data || !nodeResult.data.upload_url) {
-      throw new Error(nodeResult.error || 'Неуспешно свързване с AnonMP4 сървъра.');
-    }
-
-    const { upload_url, node_id, node_token } = nodeResult.data;
-
-    if (onStatus) onStatus('Директен облачен трансфер към AnonMP4...');
-
-    // 2. Upload file in 2MB chunks
-    const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
-    let bytesUploaded = 0;
-
-    async function uploadSingleChunk(chunkIndex) {
-      const start = (chunkIndex - 1) * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const blob = file.slice(start, end);
-
-      const params = new URLSearchParams({
-        file_id: node_token,
-        chunkIndex: chunkIndex,
-        totalChunks: totalChunks,
-        filename: file.name
-      });
-
-      const res = await fetch(`${upload_url}?${params}`, {
-        method: 'POST',
-        headers: {
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
-          'Content-Range': `bytes ${start}-${end - 1}/${file.size}`,
-          'Content-Type': 'application/octet-stream',
-          'X-Uploading-Mode': 'parallel'
-        },
-        body: blob
-      });
-
-      if (!res.ok) {
-        throw new Error(`Грешка при сегмент ${chunkIndex} от ${totalChunks}`);
-      }
-
-      bytesUploaded += (end - start);
-      if (onProgress) {
-        onProgress(bytesUploaded, file.size);
-      }
-    }
-
-    // Upload in batches of 3 parallel chunks
-    const BATCH_SIZE = 3;
-    for (let i = 1; i <= totalChunks; i += BATCH_SIZE) {
-      const batch = [];
-      for (let j = i; j < i + BATCH_SIZE && j <= totalChunks; j++) {
-        batch.push(uploadSingleChunk(j));
-      }
-      await Promise.all(batch);
-    }
-
-    if (onStatus) onStatus('Финализиране и генериране на Video ID...');
-
-    // 3. Finalize and get video info from node
-    const finalizeFormData = new FormData();
-    finalizeFormData.append('node_id', node_id);
-    finalizeFormData.append('node_token', node_token);
-    finalizeFormData.append('filename', file.name);
-
-    const finResp = await fetch('/api/anonmp4/get-video-node', {
-      method: 'POST',
-      body: finalizeFormData
-    });
-    const finRes = await finResp.json();
-    if (!finResp.ok || !finRes.success || !finRes.data || !finRes.data.video_id) {
-      throw new Error(finRes.error || 'Неуспешно финализиране на видеото в AnonMP4.');
-    }
-
-    return finRes.data.video_id;
   }
 
   // Helper for Direct Browser-to-Abyss.to / Hydrax Cloud Upload (up to 10 GB)
@@ -791,58 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // 2. AnonMP4 Upload
-      if (currentMethod === 'anonmp4_upload') {
-        const file = anonFileInput ? anonFileInput.files[0] : null;
-        if (!file) return; // Fallback to normal submit (will trigger validation)
-
-        e.preventDefault();
-        const anonProgWrap = document.getElementById('anonProgressWrapper');
-        const anonProgFill = document.getElementById('anonProgressBarFill');
-        const anonProgPercent = document.getElementById('anonProgressTextPercent');
-        const anonProgStatus = document.getElementById('anonProgressStatusDetail');
-
-        if (anonProgWrap) anonProgWrap.style.display = 'block';
-        if (anonProgFill) anonProgFill.style.width = '0%';
-        if (anonProgPercent) anonProgPercent.textContent = '0%';
-        if (anonProgStatus) anonProgStatus.textContent = 'Инициализиране на качването към AnonMP4...';
-
-        try {
-          const videoId = await uploadDirectToAnonMP4(
-            file,
-            (loaded, total) => {
-              const percent = Math.round((loaded / total) * 100);
-              if (anonProgFill) anonProgFill.style.width = `${percent}%`;
-              if (anonProgPercent) anonProgPercent.textContent = `${percent}%`;
-              const upMB = (loaded / (1024 * 1024)).toFixed(1);
-              const totMB = (total / (1024 * 1024)).toFixed(1);
-              if (anonProgStatus) anonProgStatus.textContent = `Качване в AnonMP4: ${upMB} MB / ${totMB} MB`;
-            },
-            (statusText) => {
-              if (anonProgStatus) anonProgStatus.textContent = statusText;
-            }
-          );
-
-          if (anonProgStatus) anonProgStatus.textContent = 'Качването в AnonMP4 завърши успешно! Публикуване...';
-
-          // Set identifier
-          let streamtapeIdInput = document.getElementById('streamtape_id');
-          if (streamtapeIdInput) {
-            streamtapeIdInput.value = `anon:${videoId}`;
-          }
-
-          // Switch to manual to avoid re-uploading file bytes to Render
-          uploadMethodInput.value = 'manual';
-          anonFileInput.value = '';
-
-          adminAddForm.submit();
-        } catch (err) {
-          if (anonProgStatus) anonProgStatus.textContent = 'Грешка: ' + err.message;
-          alert('Грешка при директно качване към AnonMP4: ' + err.message + '\n\nСъвет: Можете да качите видеото директно в AnonMP4 и да поставите получения линк в Метод 2 (Ръчно въвеждане).');
-        }
-        return;
-      }
-
       // 2. Streamtape API Upload
       if (currentMethod === 'api_upload') {
         const file = fileInput ? fileInput.files[0] : null;
@@ -903,11 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const epAbyssProgressBarFill = document.getElementById('epAbyssProgressBarFill');
   const epAbyssProgressTextPercent = document.getElementById('epAbyssProgressTextPercent');
   const epAbyssProgressStatusDetail = document.getElementById('epAbyssProgressStatusDetail');
-  const epAnonVideoFile = document.getElementById('epAnonVideoFile');
-  const epAnonProgressWrapper = document.getElementById('epAnonProgressWrapper');
-  const epAnonProgressBarFill = document.getElementById('epAnonProgressBarFill');
-  const epAnonProgressTextPercent = document.getElementById('epAnonProgressTextPercent');
-  const epAnonProgressStatusDetail = document.getElementById('epAnonProgressStatusDetail');
   const epSubmitBtn = document.getElementById('epSubmitBtn');
 
   if (adminEpisodeForm) {
@@ -960,60 +762,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
           if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = 'Грешка: ' + err.message;
           alert('Грешка при качване в Abyss.to: ' + err.message + '\n\nСъвет: Проверете вашия Abyss API Key в Настройките или качете ръчно в сайта abyss.to.');
-          if (epSubmitBtn) {
-            epSubmitBtn.disabled = false;
-            epSubmitBtn.textContent = '💾 Добави епизода';
-          }
-        }
-        return;
-      }
-
-      // 2. Episode AnonMP4 Upload
-      if (currentMethod === 'anonmp4_upload') {
-        const file = epAnonVideoFile ? epAnonVideoFile.files[0] : null;
-        if (!file) return;
-
-        e.preventDefault();
-
-        if (epAnonProgressWrapper) epAnonProgressWrapper.style.display = 'block';
-        if (epAnonProgressBarFill) epAnonProgressBarFill.style.width = '0%';
-        if (epAnonProgressTextPercent) epAnonProgressTextPercent.textContent = '0%';
-        if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Инициализиране...';
-        if (epSubmitBtn) {
-          epSubmitBtn.disabled = true;
-          epSubmitBtn.textContent = '⏳ Качване в AnonMP4...';
-        }
-
-        try {
-          const videoId = await uploadDirectToAnonMP4(
-            file,
-            (loaded, total) => {
-              const percent = Math.round((loaded / total) * 100);
-              if (epAnonProgressBarFill) epAnonProgressBarFill.style.width = `${percent}%`;
-              if (epAnonProgressTextPercent) epAnonProgressTextPercent.textContent = `${percent}%`;
-              const upMB = (loaded / (1024 * 1024)).toFixed(1);
-              const totMB = (total / (1024 * 1024)).toFixed(1);
-              if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = `Качване в AnonMP4: ${upMB} MB / ${totMB} MB`;
-            },
-            (statusText) => {
-              if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = statusText;
-            }
-          );
-
-          if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Видео файлът е в AnonMP4! Записване на епизода...';
-
-          const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
-          if (epStreamtapeInput) {
-            epStreamtapeInput.value = `anon:${videoId}`;
-          }
-
-          epUploadMethodInput.value = 'manual';
-          epAnonVideoFile.value = '';
-
-          adminEpisodeForm.submit();
-        } catch (err) {
-          if (epAnonProgressStatusDetail) epAnonProgressStatusDetail.textContent = 'Грешка: ' + err.message;
-          alert('Грешка при качване в AnonMP4: ' + err.message + '\n\nСъвет: Можете да качите видеото и да поставите получения линк в Ръчен линк / ID.');
           if (epSubmitBtn) {
             epSubmitBtn.disabled = false;
             epSubmitBtn.textContent = '💾 Добави епизода';

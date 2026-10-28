@@ -105,7 +105,7 @@
         <button type="button" id="reloadPlayerBtn" class="player-ctrl-btn" title="Презареди видео плейъра с нов сесиен ключ">
           🔄 Презареди
         </button>
-        {% set ext_watch = ('https://playhydrax.com/?v=' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and ('abyss' in active_streamtape_id or 'hydrax' in active_streamtape_id)) else (('https://anonmp4.to/v/' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and 'anon' in active_streamtape_id) else (('https://streamtape.com/v/' ~ active_streamtape_id) if active_streamtape_id else '')) %}
+        {% set ext_watch = ('https://playhydrax.com/?v=' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and ('abyss' in active_streamtape_id or 'hydrax' in active_streamtape_id)) else (('https://streamtape.com/v/' ~ active_streamtape_id) if active_streamtape_id else '') %}
         {% if ext_watch %}
           <a href="{{ ext_watch }}" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра">
             ↗️ Цял екран (Външен)

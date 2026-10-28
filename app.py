@@ -17,7 +17,6 @@ from streamtape import (
     extract_streamtape_id, upload_file_to_streamtape,
     check_api_status, StreamtapeAPIError
 )
-from anonmp4 import upload_to_anonmp4, AnonMP4APIError
 from abyss import (
     login_abyss, check_abyss_status, get_abyss_file_info,
     upload_to_abyss, extract_abyss_id, AbyssAPIError
@@ -488,44 +487,11 @@ def admin_add_media():
     upload_method = request.form.get('upload_method', 'manual')
     streamtape_id = None
 
-    if upload_method == 'anonmp4_upload':
-        # Automatic upload to AnonMP4 API (up to 20 GB, completely free & anonymous)
-        file = request.files.get('anon_file') or request.files.get('video_file')
-        if not file or file.filename == '':
-            flash('Не е избран видео файл за качване!', 'danger')
-            return redirect(url_for('admin_dashboard'))
-
-        if not allowed_file(file.filename):
-            allowed_str = ', '.join(ALLOWED_EXTENSIONS)
-            flash(f'Невалиден формат на файла. Разрешени формати: {allowed_str}', 'danger')
-            return redirect(url_for('admin_dashboard'))
-
-        safe_name = secure_filename(file.filename)
-        temp_path = os.path.join(TEMP_DIR, f"anon_{int(datetime.now().timestamp())}_{safe_name}")
-
-        try:
-            file.save(temp_path)
-            upload_result = upload_to_anonmp4(temp_path)
-            video_id = upload_result.get('video_id')
-            streamtape_id = f"anon:{video_id}"
-            flash(f"Успешно качване в AnonMP4! Video ID: {video_id}", 'success')
-        except AnonMP4APIError as e:
-            flash(f"Грешка при AnonMP4 API: {str(e)}", 'danger')
-            return redirect(url_for('admin_dashboard'))
-        except Exception as e:
-            flash(f"Неочаквана грешка при качване в AnonMP4: {str(e)}", 'danger')
-            return redirect(url_for('admin_dashboard'))
-        finally:
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-    elif upload_method == 'abyss_upload':
-        # Automatic upload of media to Abyss.to API (up to 10 GB)
+    if upload_method == 'abyss_upload':
+        # Automatic upload of media to Abyss / Hydrax API (up to 10 GB)
         file = request.files.get('abyss_file') or request.files.get('video_file')
         if not file or file.filename == '':
-            flash('Не е избран видео файл за качване в Abyss.to!', 'danger')
+            flash('Не е избран видео файл за качване в Abyss / Hydrax!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
         if not allowed_file(file.filename):
@@ -541,12 +507,12 @@ def admin_add_media():
             upload_result = upload_to_abyss(temp_path, ABYSS_API_KEY)
             slug = upload_result.get('slug')
             streamtape_id = f"abyss:{slug}"
-            flash(f"Успешно качване в Abyss.to! Slug: {slug}", 'success')
+            flash(f"Успешно качване в Abyss / Hydrax! Slug: {slug}", 'success')
         except AbyssAPIError as e:
-            flash(f"Грешка при Abyss.to API: {str(e)}", 'danger')
+            flash(f"Грешка при Abyss / Hydrax API: {str(e)}", 'danger')
             return redirect(url_for('admin_dashboard'))
         except Exception as e:
-            flash(f"Неочаквана грешка при качване в Abyss.to: {str(e)}", 'danger')
+            flash(f"Неочаквана грешка при качване в Abyss / Hydrax: {str(e)}", 'danger')
             return redirect(url_for('admin_dashboard'))
         finally:
             if os.path.exists(temp_path):
@@ -601,13 +567,13 @@ def admin_add_media():
                 except Exception:
                     pass
     else:
-        # Method: Manual entry (Streamtape or AnonMP4)
+        # Method: Manual entry (Abyss / Hydrax or Streamtape)
         raw_streamtape_input = request.form.get('streamtape_id', '').strip()
         server_type = request.form.get('server_type', 'auto').strip()
         streamtape_id = extract_streamtape_id(raw_streamtape_input, server_type)
 
         if media_type == 'movie' and not streamtape_id:
-            flash('За филм е необходимо да въведете валиден Abyss.to, AnonMP4 или Streamtape ID / линк!', 'danger')
+            flash('За филм е необходимо да въведете валиден Abyss / Hydrax или Streamtape ID / линк!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
     # Handle image file uploads
@@ -780,36 +746,11 @@ def admin_add_episode(media_id):
     upload_method = request.form.get('upload_method', 'manual')
     streamtape_id = None
 
-    if upload_method == 'anonmp4_upload':
-        file = request.files.get('anon_video_file') or request.files.get('video_file')
-        if not file or file.filename == '':
-            flash('Моля, изберете видео файл за качване!', 'danger')
-            return redirect(url_for('admin_manage_episodes', media_id=media.id))
-        if not allowed_file(file.filename):
-            flash('Неразрешен формат на видео файла.', 'danger')
-            return redirect(url_for('admin_manage_episodes', media_id=media.id))
-
-        safe_name = secure_filename(file.filename)
-        temp_path = os.path.join(TEMP_DIR, f"ep_anon_{int(datetime.now().timestamp())}_{safe_name}")
-
-        try:
-            file.save(temp_path)
-            upload_result = upload_to_anonmp4(temp_path)
-            streamtape_id = f"anon:{upload_result.get('video_id')}"
-        except Exception as e:
-            flash(f"Грешка при качване на епизода в AnonMP4: {str(e)}", 'danger')
-            return redirect(url_for('admin_manage_episodes', media_id=media.id))
-        finally:
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-    elif upload_method == 'abyss_upload':
-        # Automatic upload of episode to Abyss.to API (up to 10 GB)
+    if upload_method == 'abyss_upload':
+        # Automatic upload of episode to Abyss / Hydrax API (up to 10 GB)
         file = request.files.get('abyss_video_file') or request.files.get('abyss_file') or request.files.get('video_file')
         if not file or file.filename == '':
-            flash('Не е избран видео файл за качване в Abyss.to!', 'danger')
+            flash('Не е избран видео файл за качване в Abyss / Hydrax!', 'danger')
             return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
         if not allowed_file(file.filename):
@@ -825,12 +766,12 @@ def admin_add_episode(media_id):
             upload_result = upload_to_abyss(temp_path, ABYSS_API_KEY)
             slug = upload_result.get('slug')
             streamtape_id = f"abyss:{slug}"
-            flash(f"Успешно качване на епизода в Abyss.to! Slug: {slug}", 'success')
+            flash(f"Успешно качване на епизода в Abyss / Hydrax! Slug: {slug}", 'success')
         except AbyssAPIError as e:
-            flash(f"Грешка при Abyss.to API: {str(e)}", 'danger')
+            flash(f"Грешка при Abyss / Hydrax API: {str(e)}", 'danger')
             return redirect(url_for('admin_manage_episodes', media_id=media.id))
         except Exception as e:
-            flash(f"Неочаквана грешка при качване в Abyss.to: {str(e)}", 'danger')
+            flash(f"Неочаквана грешка при качване в Abyss / Hydrax: {str(e)}", 'danger')
             return redirect(url_for('admin_manage_episodes', media_id=media.id))
         finally:
             if os.path.exists(temp_path):
@@ -875,7 +816,7 @@ def admin_add_episode(media_id):
         streamtape_id = extract_streamtape_id(raw_input, server_type)
 
     if not streamtape_id:
-        flash('Необходим е валиден Abyss.to, AnonMP4 или Streamtape ID / линк за епизода!', 'danger')
+        flash('Необходим е валиден Abyss / Hydrax или Streamtape ID / линк за епизода!', 'danger')
         return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
     new_ep = Episode(
@@ -936,47 +877,6 @@ def api_get_upload_url():
         from streamtape import get_upload_url
         upload_url = get_upload_url(STREAMTAPE_LOGIN, STREAMTAPE_KEY)
         return jsonify({'success': True, 'upload_url': upload_url})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-
-# ==========================================
-# ANONMP4 DIRECT BROWSER UPLOAD API
-# ==========================================
-
-@app.route('/api/anonmp4/get-upload-node', methods=['GET', 'POST'])
-@login_required
-def api_anonmp4_get_upload_node():
-    """
-    Returns an upload node from AnonMP4 so the browser can stream
-    the video file directly to AnonMP4 Cloudflare Worker nodes.
-    """
-    filename = request.args.get('filename') or request.form.get('filename') or 'video.mp4'
-    try:
-        from anonmp4 import get_anonmp4_upload_node
-        data = get_anonmp4_upload_node(filename)
-        return jsonify({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-
-@app.route('/api/anonmp4/get-video-node', methods=['POST'])
-@login_required
-def api_anonmp4_get_video_node():
-    """
-    Finalizes the video upload on AnonMP4 and returns the resulting video_id and metadata.
-    """
-    node_id = request.form.get('node_id', '').strip()
-    node_token = request.form.get('node_token', '').strip()
-    filename = request.form.get('filename', 'video.mp4').strip()
-
-    if not node_id or not node_token:
-        return jsonify({'success': False, 'error': 'Липсват node_id или node_token.'}), 400
-
-    try:
-        from anonmp4 import get_anonmp4_video_info
-        data = get_anonmp4_video_info(node_id, node_token, filename)
-        return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
