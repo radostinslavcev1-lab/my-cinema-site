@@ -35,7 +35,7 @@
       <!-- Method Switcher for Episode -->
       <div class="method-switch-container" style="margin-bottom: 18px;">
         <button type="button" id="epMethodAbyssBtn" class="method-btn" onclick="toggleEpMethod('abyss_upload')">
-          ⚡ Abyss.to (10 GB)
+          ⚡ Abyss / Hydrax (10 GB)
         </button>
         <button type="button" id="epMethodAnonBtn" class="method-btn" onclick="toggleEpMethod('anonmp4_upload')">
           ☁️ AnonMP4 (20 GB)
@@ -89,9 +89,9 @@
             >
           </div>
 
-          <!-- Method 1: Abyss.to Upload -->
+          <!-- Method 1: Abyss / Hydrax Upload -->
           <div id="epAbyssGroup" class="form-group full-width" style="display: none;">
-            <label>Изберете видео файл за Abyss.to Cloud (до 10 GB с API Key)</label>
+            <label>Изберете видео файл за Abyss / Hydrax Cloud (до 10 GB с API Key)</label>
             <input 
               type="file" 
               id="epAbyssVideoFile" 
@@ -100,7 +100,7 @@
               accept=".mp4,.mkv,.avi,.mov,.webm"
             >
             <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              ⚡ Видеото се качва директно към Abyss.to Cloud (до 10 GB).
+              ⚡ Видеото се качва директно към Abyss / Hydrax Cloud (до 10 GB).
             </small>
 
             <!-- Episode Abyss Progress Bar -->
@@ -109,7 +109,7 @@
                 <div id="epAbyssProgressBarFill" class="progress-bar-fill" style="background: linear-gradient(90deg, #8b5cf6, #d946ef);"></div>
               </div>
               <div class="progress-status-text">
-                <span id="epAbyssProgressStatusDetail">Качване към Abyss.to...</span>
+                <span id="epAbyssProgressStatusDetail">Качване към Abyss / Hydrax...</span>
                 <span id="epAbyssProgressTextPercent" style="font-weight: 700; color: #a855f7;">0%</span>
               </div>
             </div>
@@ -148,7 +148,7 @@
                 <label for="epServerType">Стрийминг сървър</label>
                 <select id="epServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
                   <option value="auto" selected>🔍 Автоматично</option>
-                  <option value="abyss">⚡ Abyss.to Cloud (abyss.to / abysscdn.com)</option>
+                  <option value="abyss">⚡ Abyss / Hydrax Cloud (hydrax.net / playhydrax.com / abyss.to)</option>
                   <option value="anonmp4">☁️ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
                   <option value="streamtape">🚀 Streamtape Cloud</option>
                 </select>
@@ -160,12 +160,12 @@
                   id="streamtape_id" 
                   name="streamtape_id" 
                   class="form-control" 
-                  placeholder="https://abyss.to/v/..., https://anonmp4.to/v/... или Streamtape"
+                  placeholder="https://playhydrax.com/?v=..., https://anonmp4.to/v/... или Streamtape"
                 >
               </div>
             </div>
             <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
-              💡 Можете да поставите директно линк за вграждане или гледане от <strong>Abyss.to</strong>, <strong>AnonMP4</strong> или <strong>Streamtape</strong>.
+              💡 Можете да поставите директно линк за вграждане или гледане от <strong>Hydrax / Abyss</strong>, <strong>AnonMP4</strong> или <strong>Streamtape</strong>.
             </small>
           </div>
 

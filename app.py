@@ -58,8 +58,8 @@ ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 STREAMTAPE_LOGIN = os.environ.get('STREAMTAPE_LOGIN', '').strip()
 STREAMTAPE_KEY = os.environ.get('STREAMTAPE_KEY', '').strip()
 
-# Abyss.to credentials
-ABYSS_API_KEY = os.environ.get('ABYSS_API_KEY', '').strip()
+# Abyss.to / Hydrax credentials (pre-configured with user's key)
+ABYSS_API_KEY = os.environ.get('ABYSS_API_KEY', 'e46f14fa7d0b24e0e237e036071887b2').strip()
 
 # Admin credentials
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin').strip()
@@ -989,15 +989,15 @@ def api_anonmp4_get_video_node():
 @login_required
 def api_abyss_get_upload_url():
     """
-    Returns the direct upload URL for Abyss.to: https://up.abyss.to/{ABYSS_API_KEY}
-    allowing the browser to stream up to 10 GB directly to Abyss servers.
+    Returns the direct upload URL for Abyss / Hydrax: https://up.hydrax.net/{ABYSS_API_KEY}
+    allowing the browser to stream up to 10 GB directly to the servers.
     """
-    if not ABYSS_API_KEY:
-        return jsonify({'success': False, 'error': 'Липсва Abyss.to API Key. Моля въведете го в Настройките.'}), 400
+    key = ABYSS_API_KEY or "e46f14fa7d0b24e0e237e036071887b2"
     return jsonify({
         'success': True,
-        'upload_url': f"https://up.abyss.to/{ABYSS_API_KEY}",
-        'api_key': ABYSS_API_KEY
+        'upload_url': f"https://up.hydrax.net/{key}",
+        'fallback_url': f"https://up.abyss.to/{key}",
+        'api_key': key
     })
 
 

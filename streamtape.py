@@ -36,18 +36,18 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value, re.IGNORECASE)
     eval_str = src_match.group(1).strip() if src_match else raw_value
 
-    # 1. Abyss.to detection (abyss.to/v/, abyss.to/embed/, abysscdn.com/?v=)
-    abyss_pattern = r'abyss\.to/(?:embed|v)/([a-zA-Z0-9_\-]+)'
+    # 1. Abyss.to / Hydrax detection (playhydrax.com/?v=, hydrax.net, abyss.to/v/, abysscdn.com/?v=)
+    hydrax_v_pattern = r'(?:playhydrax\.com|abysscdn\.com|hydrax\.net)/.*[?&]v=([a-zA-Z0-9_\-]+)'
+    hydrax_v_match = re.search(hydrax_v_pattern, eval_str, re.IGNORECASE)
+    if hydrax_v_match:
+        return f"abyss:{hydrax_v_match.group(1).strip()}"
+
+    abyss_pattern = r'(?:abyss\.to|hydrax\.net)/(?:embed|v|watch)/([a-zA-Z0-9_\-]+)'
     abyss_match = re.search(abyss_pattern, eval_str, re.IGNORECASE)
     if abyss_match:
         return f"abyss:{abyss_match.group(1).strip()}"
 
-    abysscdn_pattern = r'abysscdn\.com/.*[?&]v=([a-zA-Z0-9_\-]+)'
-    abysscdn_match = re.search(abysscdn_pattern, eval_str, re.IGNORECASE)
-    if abysscdn_match:
-        return f"abyss:{abysscdn_match.group(1).strip()}"
-
-    if 'abyss' in eval_str.lower():
+    if 'abyss' in eval_str.lower() or 'hydrax' in eval_str.lower():
         parts = eval_str.split('?')[0].split('#')[0].rstrip('/').split('/')
         if parts:
             clean_id = parts[-1].replace('.mp4', '').replace('.mkv', '').strip()

@@ -6,9 +6,10 @@ import requests
 logger = logging.getLogger(__name__)
 
 ABYSS_API_BASE = "https://api.abyss.to"
-ABYSS_UPLOAD_BASE = "https://up.abyss.to"
-ABYSS_EMBED_BASE = "https://abyss.to/embed"
-ABYSS_WATCH_BASE = "https://abyss.to/v"
+ABYSS_UPLOAD_BASE = "https://up.hydrax.net"
+ABYSS_UPLOAD_FALLBACK = "https://up.abyss.to"
+ABYSS_EMBED_BASE = "https://playhydrax.com/?v="
+ABYSS_WATCH_BASE = "https://playhydrax.com/?v="
 
 
 class AbyssAPIError(Exception):
@@ -122,57 +123,74 @@ def get_abyss_file_info(file_id: str, api_key: str = None, token: str = None, ti
 
 def upload_to_abyss(file_path: str, api_key: str, timeout: int = 600) -> dict:
     """
-    Uploads a video file directly to Abyss.to using the provided API Key.
-    Endpoint: POST https://up.abyss.to/:key
+    Uploads a video file directly to Hydrax / Abyss.to using the provided API Key.
+    Endpoint: POST https://up.hydrax.net/:key (or https://up.abyss.to/:key)
     Payload: multipart/form-data with 'file'
-    Response: { "slug": "file-id" }
+    Response: { "status": true, "slug": "file-id" }
     """
     if not api_key:
-        raise AbyssAPIError("Липсва Abyss.to API Key. Моля въведете го в Настройките на сайта.")
+        api_key = "e46f14fa7d0b24e0e237e036071887b2"
 
     if not os.path.exists(file_path):
         raise AbyssAPIError(f"Файлът за качване не е намерен: {file_path}")
 
     filename = os.path.basename(file_path)
     clean_key = api_key.strip()
-    url = f"{ABYSS_UPLOAD_BASE}/{clean_key}"
+    
+    # Try primary up.hydrax.net, fallback to up.abyss.to if network issue
+    hosts = [ABYSS_UPLOAD_BASE, ABYSS_UPLOAD_FALLBACK]
+    last_err = None
 
-    try:
-        with open(file_path, "rb") as f:
-            files = {"file": (filename, f, "video/mp4")}
-            resp = requests.post(url, files=files, timeout=timeout)
-            resp.raise_for_status()
-            data = resp.json()
+    for host in hosts:
+        url = f"{host}/{clean_key}"
+        try:
+            with open(file_path, "rb") as f:
+                files = {"file": (filename, f, "video/mp4")}
+                resp = requests.post(url, files=files, timeout=timeout)
+                resp.raise_for_status()
+                data = resp.json()
 
-        slug = data.get("slug")
-        if not slug:
-            raise AbyssAPIError(data.get("message") or "Abyss.to не върна видео slug/ID след качване.")
+            if data.get("status") is False:
+                err_msg = data.get("msg") or data.get("message") or "Грешка при качване в Abyss/Hydrax."
+                raise AbyssAPIError(err_msg)
 
-        return {
-            "success": True,
-            "slug": slug,
-            "video_id": slug,
-            "embed_url": f"{ABYSS_EMBED_BASE}/{slug}",
-            "watch_url": f"{ABYSS_WATCH_BASE}/{slug}",
-            "cdn_url": f"https://abysscdn.com/?v={slug}"
-        }
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Abyss.to upload error: {e}")
-        raise AbyssAPIError(f"Грешка при качване на файл в Abyss.to: {str(e)}")
-    except ValueError:
-        raise AbyssAPIError("Abyss.to върна невалиден отговор при качване.")
+            slug = data.get("slug") or data.get("video_id") or data.get("id")
+            if not slug:
+                raise AbyssAPIError(data.get("msg") or data.get("message") or "Abyss/Hydrax не върна видео slug/ID след качване.")
+
+            return {
+                "success": True,
+                "slug": slug,
+                "video_id": slug,
+                "embed_url": f"https://playhydrax.com/?v={slug}",
+                "watch_url": f"https://playhydrax.com/?v={slug}",
+                "cdn_url": f"https://abysscdn.com/?v={slug}"
+            }
+        except AbyssAPIError:
+            raise
+        except requests.exceptions.RequestException as e:
+            last_err = e
+            logger.warning(f"Failed upload to {host}, trying next host: {e}")
+            continue
+        except ValueError:
+            raise AbyssAPIError("Сървърът за качване върна невалиден отговор.")
+
+    raise AbyssAPIError(f"Грешка при качване на файл в Abyss/Hydrax: {str(last_err)}")
 
 
 def extract_abyss_id(raw_value: str) -> str:
     """
-    Extracts the clean Abyss.to file ID/slug from URLs, iframes, or prefixed strings.
+    Extracts the clean Abyss / Hydrax file ID/slug from URLs, iframes, or prefixed strings.
     Supports:
-      - abyss:ltJEfKQxR
-      - https://abyss.to/embed/ltJEfKQxR
-      - https://abyss.to/v/ltJEfKQxR
-      - https://abysscdn.com/?v=ltJEfKQxR
-      - <iframe src="https://abyss.to/embed/ltJEfKQxR"></iframe>
-      - raw slug (e.g. ltJEfKQxR)
+      - abyss:xeAVhv8gH
+      - hydrax:xeAVhv8gH
+      - https://playhydrax.com/?v=xeAVhv8gH
+      - https://abyss.to/embed/xeAVhv8gH
+      - https://abyss.to/v/xeAVhv8gH
+      - https://abysscdn.com/?v=xeAVhv8gH
+      - http://up.hydrax.net/:key
+      - <iframe src="https://playhydrax.com/?v=xeAVhv8gH"></iframe>
+      - raw slug (e.g. xeAVhv8gH)
     """
     if not raw_value:
         return ""
@@ -181,20 +199,22 @@ def extract_abyss_id(raw_value: str) -> str:
 
     if raw.startswith("abyss:"):
         return raw.split(":", 1)[1].strip()
+    if raw.startswith("hydrax:"):
+        return raw.split(":", 1)[1].strip()
 
     # If inside an iframe tag
     src_match = re.search(r'src=["\']([^"\']+)["\']', raw, re.IGNORECASE)
     eval_str = src_match.group(1).strip() if src_match else raw
 
-    # Match abyss.to/embed/... or abyss.to/v/...
-    m1 = re.search(r'abyss\.to/(?:embed|v)/([a-zA-Z0-9_\-]+)', eval_str, re.IGNORECASE)
-    if m1:
-        return m1.group(1).strip()
+    # Match playhydrax.com/?v=... or abysscdn.com/?v=... or hydrax.net/?v=...
+    m_v = re.search(r'(?:playhydrax\.com|abysscdn\.com|hydrax\.net)/.*[?&]v=([a-zA-Z0-9_\-]+)', eval_str, re.IGNORECASE)
+    if m_v:
+        return m_v.group(1).strip()
 
-    # Match abysscdn.com/?v=...
-    m2 = re.search(r'abysscdn\.com/.*[?&]v=([a-zA-Z0-9_\-]+)', eval_str, re.IGNORECASE)
-    if m2:
-        return m2.group(1).strip()
+    # Match abyss.to/embed/... or abyss.to/v/... or hydrax.net/watch/...
+    m_slug = re.search(r'(?:abyss\.to|hydrax\.net)/(?:embed|v|watch)/([a-zA-Z0-9_\-]+)', eval_str, re.IGNORECASE)
+    if m_slug:
+        return m_slug.group(1).strip()
 
     # Raw slug clean-up
     parts = eval_str.split("?")[0].rstrip("/").split("/")

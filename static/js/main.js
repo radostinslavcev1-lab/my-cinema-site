@@ -149,8 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const streamtapeId = btn.dataset.streamtapeId;
         let fallbackUrl = '';
         if (streamtapeId) {
-          if (streamtapeId.startsWith('abyss:')) {
-            fallbackUrl = `https://abyss.to/embed/${streamtapeId.split(':')[1]}`;
+          if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
+            fallbackUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
           } else if (streamtapeId.startsWith('anon:')) {
             fallbackUrl = `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}`;
           } else {
@@ -281,10 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function applyAdShieldState(active, reload = false) {
     if (!playerIframe) return;
 
-    const isStreamtape = playerIframe.src && playerIframe.src.includes('streamtape.com');
+    const disallowsSandbox = playerIframe.src && (
+      playerIframe.src.includes('streamtape.com') ||
+      playerIframe.src.includes('playhydrax.com') ||
+      playerIframe.src.includes('hydrax.net') ||
+      playerIframe.src.includes('abyss.to')
+    );
 
-    // Never add sandbox to Streamtape because it triggers "Client blocked!"
-    if (isStreamtape || !active) {
+    // Never add sandbox to Streamtape or Hydrax/Abyss because they detect it and block playback
+    if (disallowsSandbox || !active) {
       playerIframe.removeAttribute('sandbox');
     } else {
       playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
@@ -377,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const select = form.querySelector('select[name="server_type"]');
       if (!select) return;
 
-      if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.startsWith('abyss:')) {
+      if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.includes('hydrax') || val.startsWith('abyss:') || val.startsWith('hydrax:')) {
         select.value = 'abyss';
       } else if (val.includes('anonmp4') || val.startsWith('anon:') || val.startsWith('anonmp4:')) {
         select.value = 'anonmp4';
@@ -627,16 +632,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return finRes.data.video_id;
   }
 
-  // Helper for Direct Browser-to-Abyss.to Cloud Upload (up to 10 GB)
+  // Helper for Direct Browser-to-Abyss.to / Hydrax Cloud Upload (up to 10 GB)
   async function uploadDirectToAbyss(file, onProgress, onStatus) {
-    if (onStatus) onStatus('Свързване с Abyss.to API за адрес за качване...');
+    if (onStatus) onStatus('Свързване с Abyss / Hydrax API...');
     const urlResp = await fetch('/api/abyss/get-upload-url');
     const urlData = await urlResp.json();
     if (!urlResp.ok || !urlData.success || !urlData.upload_url) {
-      throw new Error(urlData.error || 'Липсва конфигуриран Abyss.to API Key в Настройките.');
+      throw new Error(urlData.error || 'Липсва конфигуриран API Key. Моля проверете настройките.');
     }
 
-    if (onStatus) onStatus('Директно облачно качване към сървърите на Abyss.to...');
+    if (onStatus) onStatus('Директно облачно качване към Abyss / Hydrax Cloud (до 10 GB)...');
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const fd = new FormData();
@@ -651,24 +656,34 @@ document.addEventListener('DOMContentLoaded', () => {
       xhr.onload = () => {
         try {
           if (xhr.status === 401) {
-            reject(new Error('Невалиден Abyss.to API Key (401 Unauthorized). Моля проверете ключа в Настройките.'));
+            reject(new Error('Невалиден API Key (401 Unauthorized). Моля проверете ключа в Настройките.'));
             return;
           }
           const resp = JSON.parse(xhr.responseText);
-          if (resp && resp.slug) {
-            resolve(resp.slug);
-          } else if (resp && resp.error) {
-            reject(new Error(resp.error.message || resp.error || 'Abyss.to върна грешка при обработката.'));
-          } else {
-            reject(new Error('Неочакван отговор от Abyss.to (липсва slug).'));
+          if (resp && (resp.slug || resp.status === true)) {
+            const slug = resp.slug || resp.video_id || resp.id;
+            if (slug) {
+              resolve(slug);
+              return;
+            }
           }
+          if (resp && resp.msg) {
+            reject(new Error(resp.msg));
+            return;
+          }
+          if (resp && resp.error) {
+            const errMsg = typeof resp.error === 'object' ? (resp.error.message || JSON.stringify(resp.error)) : resp.error;
+            reject(new Error(errMsg));
+            return;
+          }
+          reject(new Error('Неочакван отговор от сървъра (липсва slug).'));
         } catch (err) {
-          reject(new Error('Грешка при обработка на отговора от Abyss.to.'));
+          reject(new Error('Грешка при обработка на отговора от сървъра за качване.'));
         }
       };
 
       xhr.onerror = () => {
-        reject(new Error('Мрежова грешка при връзката с Abyss.to сървъра.'));
+        reject(new Error('Мрежова грешка при трансфера към Abyss / Hydrax сървъра.'));
       };
 
       xhr.open('POST', urlData.upload_url);

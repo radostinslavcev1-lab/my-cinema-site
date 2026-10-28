@@ -136,9 +136,9 @@
                 <label for="editServerType">Стрийминг сървър</label>
                 <select id="editServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
                   <option value="auto">🔍 Автоматично</option>
-                  <option value="abyss" {% if item.streamtape_id and ('abyss' in item.streamtape_id) %}selected{% endif %}>⚡ Abyss.to Cloud</option>
+                  <option value="abyss" {% if item.streamtape_id and ('abyss' in item.streamtape_id or 'hydrax' in item.streamtape_id) %}selected{% endif %}>⚡ Abyss / Hydrax Cloud</option>
                   <option value="anonmp4" {% if item.streamtape_id and ('anon' in item.streamtape_id) %}selected{% endif %}>☁️ AnonMP4 Cloud</option>
-                  <option value="streamtape" {% if item.streamtape_id and not ('anon' in item.streamtape_id or 'abyss' in item.streamtape_id) %}selected{% endif %}>🚀 Streamtape Cloud</option>
+                  <option value="streamtape" {% if item.streamtape_id and not ('anon' in item.streamtape_id or 'abyss' in item.streamtape_id or 'hydrax' in item.streamtape_id) %}selected{% endif %}>🚀 Streamtape Cloud</option>
                 </select>
               </div>
               <div>
@@ -148,13 +148,13 @@
                   id="streamtape_id" 
                   name="streamtape_id" 
                   class="form-control" 
-                  placeholder="https://abyss.to/v/..., https://anonmp4.to/v/... или https://streamtape.com/v/..."
+                  placeholder="https://playhydrax.com/?v=..., https://anonmp4.to/v/... или https://streamtape.com/v/..."
                   value="{{ item.streamtape_id if item.streamtape_id else '' }}"
                 >
               </div>
             </div>
             <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
-              Поддържа линкове от Abyss.to (abyss.to / abysscdn.com), AnonMP4 (anonmp4.to / anonmp4.art) и Streamtape.
+              Поддържа линкове от Hydrax / Abyss (playhydrax.com / hydrax.net / abyss.to), AnonMP4 и Streamtape.
             </small>
           </div>
         {% else %}

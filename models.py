@@ -12,21 +12,21 @@ def resolve_embed_url(video_identifier: str) -> str:
         return None
     val = video_identifier.strip()
 
-    # 1. Abyss.to
-    if val.startswith('abyss:'):
+    # 1. Abyss.to / Hydrax
+    if val.startswith('abyss:') or val.startswith('hydrax:'):
         clean_id = val.split(':', 1)[1].strip()
-        return f"https://abyss.to/embed/{clean_id}"
+        return f"https://playhydrax.com/?v={clean_id}"
 
     if val.startswith('http://') or val.startswith('https://'):
-        if 'abyss.to' in val or 'abysscdn.com' in val:
-            m1 = re.search(r'abyss\.to/(?:embed|v)/([a-zA-Z0-9_\-]+)', val)
+        if 'abyss.to' in val or 'abysscdn.com' in val or 'hydrax' in val:
+            m_v = re.search(r'[?&]v=([a-zA-Z0-9_\-]+)', val)
+            if m_v:
+                return f"https://playhydrax.com/?v={m_v.group(1)}"
+            m1 = re.search(r'(?:abyss\.to|hydrax\.net)/(?:embed|v|watch)/([a-zA-Z0-9_\-]+)', val)
             if m1:
-                return f"https://abyss.to/embed/{m1.group(1)}"
-            m2 = re.search(r'abysscdn\.com/.*[?&]v=([a-zA-Z0-9_\-]+)', val)
-            if m2:
-                return f"https://abyss.to/embed/{m2.group(1)}"
+                return f"https://playhydrax.com/?v={m1.group(1)}"
             parts = val.split('?')[0].rstrip('/').split('/')
-            return f"https://abyss.to/embed/{parts[-1]}"
+            return f"https://playhydrax.com/?v={parts[-1]}"
 
         if 'anonmp4.' in val:
             # Normalize all AnonMP4 domains (anonmp4.to, anonmp4.art, anonmp4.xyz, etc.) to canonical embed domain anonmp4.help
@@ -59,8 +59,8 @@ def get_server_name(video_identifier: str) -> str:
     if not video_identifier:
         return "Cloud Stream"
     val = video_identifier.strip().lower()
-    if 'abyss' in val:
-        return "Abyss.to Cloud"
+    if 'abyss' in val or 'hydrax' in val:
+        return "Abyss / Hydrax Cloud"
     if 'anon' in val:
         return "AnonMP4 Cloud"
     return "Streamtape Cloud"
