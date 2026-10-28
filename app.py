@@ -18,6 +18,10 @@ from streamtape import (
     check_api_status, StreamtapeAPIError
 )
 from anonmp4 import upload_to_anonmp4, AnonMP4APIError
+from abyss import (
+    login_abyss, check_abyss_status, get_abyss_file_info,
+    upload_to_abyss, extract_abyss_id, AbyssAPIError
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -53,6 +57,9 @@ ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 # Streamtape credentials
 STREAMTAPE_LOGIN = os.environ.get('STREAMTAPE_LOGIN', '').strip()
 STREAMTAPE_KEY = os.environ.get('STREAMTAPE_KEY', '').strip()
+
+# Abyss.to credentials
+ABYSS_API_KEY = os.environ.get('ABYSS_API_KEY', '').strip()
 
 # Admin credentials
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin').strip()
@@ -344,6 +351,9 @@ def admin_dashboard():
     # Check Streamtape API status
     api_status = check_api_status(STREAMTAPE_LOGIN, STREAMTAPE_KEY)
 
+    # Check Abyss.to API status
+    abyss_status = check_abyss_status(ABYSS_API_KEY)
+
     return render_template(
         'admin.html',
         items=media_items,
@@ -353,7 +363,9 @@ def admin_dashboard():
         total_episodes=total_episodes,
         api_status=api_status,
         current_streamtape_login=STREAMTAPE_LOGIN,
-        current_streamtape_key=STREAMTAPE_KEY
+        current_streamtape_key=STREAMTAPE_KEY,
+        abyss_status=abyss_status,
+        current_abyss_key=ABYSS_API_KEY
     )
 
 
@@ -396,6 +408,48 @@ def admin_settings_streamtape():
         flash(f"Успешно свързване със Streamtape API! Акаунт: {status.get('email', 'Активен')}", 'success')
     else:
         flash(f"Ключовете са запазени, но Streamtape върна: {status.get('message')}", 'warning')
+
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/settings/abyss', methods=['POST'])
+@login_required
+def admin_settings_abyss():
+    """Allows updating Abyss.to API Key directly from Admin Panel."""
+    global ABYSS_API_KEY
+    import re
+
+    key_val = request.form.get('abyss_api_key', '').strip()
+
+    if not key_val:
+        flash('Моля, въведете Abyss.to API Key!', 'warning')
+        return redirect(url_for('admin_dashboard'))
+
+    ABYSS_API_KEY = key_val
+
+    # Update in .env file
+    env_file = os.path.join(os.path.dirname(__file__), '.env')
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            if 'ABYSS_API_KEY=' in content:
+                content = re.sub(r'ABYSS_API_KEY=.*', f'ABYSS_API_KEY={key_val}', content)
+            else:
+                content += f"\nABYSS_API_KEY={key_val}\n"
+
+            with open(env_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+        except Exception:
+            pass
+
+    # Test status immediately
+    status = check_abyss_status(ABYSS_API_KEY)
+    if status.get('valid'):
+        flash(f"Успешно свързване с Abyss.to API! Максимален размер: {status.get('max_upload_gb')} (Лимит: {status.get('limit_gb', 'N/A')})", 'success')
+    else:
+        flash(f"Ключът е записан, но Abyss.to върна: {status.get('message', 'Грешка')}", 'warning')
 
     return redirect(url_for('admin_dashboard'))
 
@@ -467,6 +521,39 @@ def admin_add_media():
                     os.remove(temp_path)
                 except Exception:
                     pass
+    elif upload_method == 'abyss_upload':
+        # Automatic upload of media to Abyss.to API (up to 10 GB)
+        file = request.files.get('abyss_file') or request.files.get('video_file')
+        if not file or file.filename == '':
+            flash('Не е избран видео файл за качване в Abyss.to!', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        if not allowed_file(file.filename):
+            allowed_str = ', '.join(ALLOWED_EXTENSIONS)
+            flash(f'Невалиден формат на файла. Разрешени формати: {allowed_str}', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+        safe_name = secure_filename(file.filename)
+        temp_path = os.path.join(TEMP_DIR, f"abyss_{int(datetime.now().timestamp())}_{safe_name}")
+
+        try:
+            file.save(temp_path)
+            upload_result = upload_to_abyss(temp_path, ABYSS_API_KEY)
+            slug = upload_result.get('slug')
+            streamtape_id = f"abyss:{slug}"
+            flash(f"Успешно качване в Abyss.to! Slug: {slug}", 'success')
+        except AbyssAPIError as e:
+            flash(f"Грешка при Abyss.to API: {str(e)}", 'danger')
+            return redirect(url_for('admin_dashboard'))
+        except Exception as e:
+            flash(f"Неочаквана грешка при качване в Abyss.to: {str(e)}", 'danger')
+            return redirect(url_for('admin_dashboard'))
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
     elif upload_method == 'api_upload':
         # Method 2: Automatic upload to Streamtape API
         if 'video_file' not in request.files:
@@ -520,7 +607,7 @@ def admin_add_media():
         streamtape_id = extract_streamtape_id(raw_streamtape_input, server_type)
 
         if media_type == 'movie' and not streamtape_id:
-            flash('За филм е необходимо да въведете валиден Streamtape или AnonMP4 ID / линк!', 'danger')
+            flash('За филм е необходимо да въведете валиден Abyss.to, AnonMP4 или Streamtape ID / линк!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
     # Handle image file uploads
@@ -718,6 +805,39 @@ def admin_add_episode(media_id):
                     os.remove(temp_path)
                 except Exception:
                     pass
+    elif upload_method == 'abyss_upload':
+        # Automatic upload of episode to Abyss.to API (up to 10 GB)
+        file = request.files.get('abyss_video_file') or request.files.get('abyss_file') or request.files.get('video_file')
+        if not file or file.filename == '':
+            flash('Не е избран видео файл за качване в Abyss.to!', 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+
+        if not allowed_file(file.filename):
+            allowed_str = ', '.join(ALLOWED_EXTENSIONS)
+            flash(f'Невалиден формат на файла. Разрешени формати: {allowed_str}', 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+
+        safe_name = secure_filename(file.filename)
+        temp_path = os.path.join(TEMP_DIR, f"ep_abyss_{int(datetime.now().timestamp())}_{safe_name}")
+
+        try:
+            file.save(temp_path)
+            upload_result = upload_to_abyss(temp_path, ABYSS_API_KEY)
+            slug = upload_result.get('slug')
+            streamtape_id = f"abyss:{slug}"
+            flash(f"Успешно качване на епизода в Abyss.to! Slug: {slug}", 'success')
+        except AbyssAPIError as e:
+            flash(f"Грешка при Abyss.to API: {str(e)}", 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+        except Exception as e:
+            flash(f"Неочаквана грешка при качване в Abyss.to: {str(e)}", 'danger')
+            return redirect(url_for('admin_manage_episodes', media_id=media.id))
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
     elif upload_method == 'api_upload':
         if 'video_file' not in request.files or request.files['video_file'].filename == '':
             flash('Моля, изберете видео файл за качване!', 'danger')
@@ -755,7 +875,7 @@ def admin_add_episode(media_id):
         streamtape_id = extract_streamtape_id(raw_input, server_type)
 
     if not streamtape_id:
-        flash('Необходим е валиден Streamtape или AnonMP4 ID / линк за епизода!', 'danger')
+        flash('Необходим е валиден Abyss.to, AnonMP4 или Streamtape ID / линк за епизода!', 'danger')
         return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
     new_ep = Episode(
@@ -859,6 +979,59 @@ def api_anonmp4_get_video_node():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+
+
+# ==========================================
+# ABYSS.TO DIRECT BROWSER UPLOAD API
+# ==========================================
+
+@app.route('/api/abyss/get-upload-url')
+@login_required
+def api_abyss_get_upload_url():
+    """
+    Returns the direct upload URL for Abyss.to: https://up.abyss.to/{ABYSS_API_KEY}
+    allowing the browser to stream up to 10 GB directly to Abyss servers.
+    """
+    if not ABYSS_API_KEY:
+        return jsonify({'success': False, 'error': 'Липсва Abyss.to API Key. Моля въведете го в Настройките.'}), 400
+    return jsonify({
+        'success': True,
+        'upload_url': f"https://up.abyss.to/{ABYSS_API_KEY}",
+        'api_key': ABYSS_API_KEY
+    })
+
+
+@app.route('/api/abyss/upload', methods=['POST'])
+@login_required
+def api_abyss_upload_proxy():
+    """
+    Proxy upload to Abyss.to for environments that upload via backend.
+    """
+    if not ABYSS_API_KEY:
+        return jsonify({'success': False, 'error': 'Липсва конфигуриран Abyss.to API Key.'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Няма качен видео файл.'}), 400
+
+    file = request.files['file']
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': 'Невалиден или неподдържан видео файл.'}), 400
+
+    safe_name = secure_filename(file.filename)
+    temp_path = os.path.join(TEMP_DIR, f"abyss_proxy_{int(datetime.now().timestamp())}_{safe_name}")
+
+    try:
+        file.save(temp_path)
+        res = upload_to_abyss(temp_path, ABYSS_API_KEY)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 # ==========================================

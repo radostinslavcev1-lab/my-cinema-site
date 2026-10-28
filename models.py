@@ -6,13 +6,28 @@ from database import db
 def resolve_embed_url(video_identifier: str) -> str:
     """
     Resolves video identifier or URL to a playable iframe embed URL.
-    Supports both Streamtape and AnonMP4.
-    AnonMP4 official streaming embed lives on https://anonmp4.help/embed/{id}.
+    Supports Abyss.to, AnonMP4, and Streamtape.
     """
     if not video_identifier:
         return None
     val = video_identifier.strip()
+
+    # 1. Abyss.to
+    if val.startswith('abyss:'):
+        clean_id = val.split(':', 1)[1].strip()
+        return f"https://abyss.to/embed/{clean_id}"
+
     if val.startswith('http://') or val.startswith('https://'):
+        if 'abyss.to' in val or 'abysscdn.com' in val:
+            m1 = re.search(r'abyss\.to/(?:embed|v)/([a-zA-Z0-9_\-]+)', val)
+            if m1:
+                return f"https://abyss.to/embed/{m1.group(1)}"
+            m2 = re.search(r'abysscdn\.com/.*[?&]v=([a-zA-Z0-9_\-]+)', val)
+            if m2:
+                return f"https://abyss.to/embed/{m2.group(1)}"
+            parts = val.split('?')[0].rstrip('/').split('/')
+            return f"https://abyss.to/embed/{parts[-1]}"
+
         if 'anonmp4.' in val:
             # Normalize all AnonMP4 domains (anonmp4.to, anonmp4.art, anonmp4.xyz, etc.) to canonical embed domain anonmp4.help
             val = re.sub(r'anonmp4\.(?:to|com|net|xyz|xyzapi|art)', 'anonmp4.help', val)
@@ -26,6 +41,7 @@ def resolve_embed_url(video_identifier: str) -> str:
             return val.replace('streamtape.com/v/', 'streamtape.com/e/')
         return val
 
+    # 2. AnonMP4
     if val.startswith('anon:') or val.startswith('anonmp4:'):
         clean_id = val.split(':', 1)[1].strip()
         return f"https://anonmp4.help/embed/{clean_id}"
@@ -34,6 +50,7 @@ def resolve_embed_url(video_identifier: str) -> str:
         clean_id = val.replace('anon:', '').replace('anonmp4:', '').strip()
         return f"https://anonmp4.help/embed/{clean_id}"
 
+    # 3. Streamtape
     return f"https://streamtape.com/e/{val}/"
 
 
@@ -41,8 +58,10 @@ def get_server_name(video_identifier: str) -> str:
     """Returns human-readable name of the streaming server."""
     if not video_identifier:
         return "Cloud Stream"
-    val = video_identifier.strip()
-    if 'anon' in val.lower():
+    val = video_identifier.strip().lower()
+    if 'abyss' in val:
+        return "Abyss.to Cloud"
+    if 'anon' in val:
         return "AnonMP4 Cloud"
     return "Streamtape Cloud"
 

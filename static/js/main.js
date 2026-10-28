@@ -147,7 +147,16 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const streamtapeId = btn.dataset.streamtapeId;
-        const fallbackUrl = streamtapeId ? (streamtapeId.startsWith('anon:') ? `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}` : `https://streamtape.com/e/${streamtapeId}/`) : '';
+        let fallbackUrl = '';
+        if (streamtapeId) {
+          if (streamtapeId.startsWith('abyss:')) {
+            fallbackUrl = `https://abyss.to/embed/${streamtapeId.split(':')[1]}`;
+          } else if (streamtapeId.startsWith('anon:')) {
+            fallbackUrl = `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}`;
+          } else {
+            fallbackUrl = `https://streamtape.com/e/${streamtapeId}/`;
+          }
+        }
         const embedUrl = btn.dataset.embedUrl || fallbackUrl;
         const serverName = btn.dataset.serverName || 'Cloud Stream';
         const episodeId = btn.dataset.episodeId;
@@ -325,12 +334,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 4. ADMIN PANEL: METHOD TOGGLE (ANONMP4 vs MANUAL vs STREAMTAPE API)
+  // 4. ADMIN PANEL: METHOD TOGGLE (ABYSS vs ANONMP4 vs MANUAL vs STREAMTAPE API)
   // ========================================================
+  const methodAbyssBtn = document.getElementById('methodAbyssBtn');
   const methodAnonBtn = document.getElementById('methodAnonBtn');
   const methodManualBtn = document.getElementById('methodManualBtn');
   const methodApiBtn = document.getElementById('methodApiBtn');
   const uploadMethodInput = document.getElementById('uploadMethodInput');
+  const abyssUploadFields = document.getElementById('abyssUploadFields');
   const anonUploadFields = document.getElementById('anonUploadFields');
   const manualFields = document.getElementById('manualFields');
   const apiUploadFields = document.getElementById('apiUploadFields');
@@ -340,16 +351,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setUploadMethod(method) {
     if (uploadMethodInput) uploadMethodInput.value = method;
-    [methodAnonBtn, methodManualBtn, methodApiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+    [methodAbyssBtn, methodAnonBtn, methodManualBtn, methodApiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+    if (abyssUploadFields) abyssUploadFields.style.display = (method === 'abyss_upload') ? 'block' : 'none';
     if (anonUploadFields) anonUploadFields.style.display = (method === 'anonmp4_upload') ? 'block' : 'none';
     if (manualFields) manualFields.style.display = (method === 'manual') ? 'block' : 'none';
     if (apiUploadFields) apiUploadFields.style.display = (method === 'api_upload') ? 'block' : 'none';
 
+    if (method === 'abyss_upload' && methodAbyssBtn) methodAbyssBtn.classList.add('active');
     if (method === 'anonmp4_upload' && methodAnonBtn) methodAnonBtn.classList.add('active');
     if (method === 'manual' && methodManualBtn) methodManualBtn.classList.add('active');
     if (method === 'api_upload' && methodApiBtn) methodApiBtn.classList.add('active');
   }
 
+  if (methodAbyssBtn) methodAbyssBtn.addEventListener('click', () => setUploadMethod('abyss_upload'));
   if (methodAnonBtn) methodAnonBtn.addEventListener('click', () => setUploadMethod('anonmp4_upload'));
   if (methodManualBtn) methodManualBtn.addEventListener('click', () => setUploadMethod('manual'));
   if (methodApiBtn) methodApiBtn.addEventListener('click', () => setUploadMethod('api_upload'));
@@ -363,7 +377,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const select = form.querySelector('select[name="server_type"]');
       if (!select) return;
 
-      if (val.includes('anonmp4') || val.startsWith('anon:') || val.startsWith('anonmp4:')) {
+      if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.startsWith('abyss:')) {
+        select.value = 'abyss';
+      } else if (val.includes('anonmp4') || val.startsWith('anon:') || val.startsWith('anonmp4:')) {
         select.value = 'anonmp4';
       } else if (val.includes('streamtape') || val.includes('streamta.pe')) {
         select.value = 'streamtape';
@@ -388,9 +404,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 5. FILE UPLOAD DROP-ZONES (ANONMP4 & STREAMTAPE)
+  // 5. FILE UPLOAD DROP-ZONES (ABYSS.TO, ANONMP4 & STREAMTAPE)
   // ========================================================
   
+  // Abyss.to Drop Zone
+  const abyssDropBox = document.getElementById('abyssUploadBox');
+  const abyssFileInput = document.getElementById('abyssFileInput');
+  const abyssFileSelectedName = document.getElementById('abyssFileSelectedName');
+
+  if (abyssDropBox && abyssFileInput) {
+    abyssDropBox.addEventListener('click', () => abyssFileInput.click());
+
+    ['dragenter', 'dragover'].forEach(name => {
+      abyssDropBox.addEventListener(name, (e) => {
+        e.preventDefault();
+        abyssDropBox.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      abyssDropBox.addEventListener(name, (e) => {
+        e.preventDefault();
+        abyssDropBox.classList.remove('dragover');
+      });
+    });
+
+    abyssDropBox.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files.length > 0) {
+        abyssFileInput.files = e.dataTransfer.files;
+        updateAbyssFileInfo(abyssFileInput.files[0]);
+      }
+    });
+
+    abyssFileInput.addEventListener('change', () => {
+      if (abyssFileInput.files.length > 0) {
+        updateAbyssFileInfo(abyssFileInput.files[0]);
+      }
+    });
+
+    function updateAbyssFileInfo(file) {
+      if (!file) return;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      if (abyssFileSelectedName) {
+        abyssFileSelectedName.innerHTML = `✓ Избран файл за Abyss.to: <strong>${escapeHtml(file.name)}</strong> (${sizeMB} MB)`;
+      }
+    }
+  }
+
   // AnonMP4 Drop Zone
   const anonDropBox = document.getElementById('anonUploadBox');
   const anonFileInput = document.getElementById('anonFileInput');
@@ -567,6 +627,55 @@ document.addEventListener('DOMContentLoaded', () => {
     return finRes.data.video_id;
   }
 
+  // Helper for Direct Browser-to-Abyss.to Cloud Upload (up to 10 GB)
+  async function uploadDirectToAbyss(file, onProgress, onStatus) {
+    if (onStatus) onStatus('Свързване с Abyss.to API за адрес за качване...');
+    const urlResp = await fetch('/api/abyss/get-upload-url');
+    const urlData = await urlResp.json();
+    if (!urlResp.ok || !urlData.success || !urlData.upload_url) {
+      throw new Error(urlData.error || 'Липсва конфигуриран Abyss.to API Key в Настройките.');
+    }
+
+    if (onStatus) onStatus('Директно облачно качване към сървърите на Abyss.to...');
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const fd = new FormData();
+      fd.append('file', file);
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(e.loaded, e.total);
+        }
+      });
+
+      xhr.onload = () => {
+        try {
+          if (xhr.status === 401) {
+            reject(new Error('Невалиден Abyss.to API Key (401 Unauthorized). Моля проверете ключа в Настройките.'));
+            return;
+          }
+          const resp = JSON.parse(xhr.responseText);
+          if (resp && resp.slug) {
+            resolve(resp.slug);
+          } else if (resp && resp.error) {
+            reject(new Error(resp.error.message || resp.error || 'Abyss.to върна грешка при обработката.'));
+          } else {
+            reject(new Error('Неочакван отговор от Abyss.to (липсва slug).'));
+          }
+        } catch (err) {
+          reject(new Error('Грешка при обработка на отговора от Abyss.to.'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Мрежова грешка при връзката с Abyss.to сървъра.'));
+      };
+
+      xhr.open('POST', urlData.upload_url);
+      xhr.send(fd);
+    });
+  }
+
   // Helper for Direct Browser-to-Streamtape Cloud Upload
   async function uploadDirectToStreamtape(file, onProgress, onStatus) {
     onStatus('Свързване със Streamtape API за уникален адрес за качване...');
@@ -615,7 +724,59 @@ document.addEventListener('DOMContentLoaded', () => {
     adminAddForm.addEventListener('submit', async (e) => {
       const currentMethod = uploadMethodInput ? uploadMethodInput.value : 'manual';
 
-      // 1. AnonMP4 Upload
+      // 1. Abyss.to Upload
+      if (currentMethod === 'abyss_upload') {
+        const file = abyssFileInput ? abyssFileInput.files[0] : null;
+        if (!file) return;
+
+        e.preventDefault();
+        const abyssProgWrap = document.getElementById('abyssProgressWrapper');
+        const abyssProgFill = document.getElementById('abyssProgressBarFill');
+        const abyssProgPercent = document.getElementById('abyssProgressTextPercent');
+        const abyssProgStatus = document.getElementById('abyssProgressStatusDetail');
+
+        if (abyssProgWrap) abyssProgWrap.style.display = 'block';
+        if (abyssProgFill) abyssProgFill.style.width = '0%';
+        if (abyssProgPercent) abyssProgPercent.textContent = '0%';
+        if (abyssProgStatus) abyssProgStatus.textContent = 'Инициализиране на качването към Abyss.to...';
+
+        try {
+          const slug = await uploadDirectToAbyss(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (abyssProgFill) abyssProgFill.style.width = `${percent}%`;
+              if (abyssProgPercent) abyssProgPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (abyssProgStatus) abyssProgStatus.textContent = `Качване в Abyss.to: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (abyssProgStatus) abyssProgStatus.textContent = statusText;
+            }
+          );
+
+          if (abyssProgStatus) abyssProgStatus.textContent = 'Качването в Abyss.to завърши успешно! Публикуване...';
+
+          // Set identifier
+          let streamtapeIdInput = document.getElementById('streamtape_id');
+          if (streamtapeIdInput) {
+            streamtapeIdInput.value = `abyss:${slug}`;
+          }
+
+          // Switch to manual to avoid re-uploading file bytes to backend
+          uploadMethodInput.value = 'manual';
+          abyssFileInput.value = '';
+
+          adminAddForm.submit();
+        } catch (err) {
+          if (abyssProgStatus) abyssProgStatus.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при директно качване към Abyss.to: ' + err.message + '\n\nСъвет: Проверете вашия Abyss API Key в Настройките или качете ръчно в сайта abyss.to.');
+        }
+        return;
+      }
+
+      // 2. AnonMP4 Upload
       if (currentMethod === 'anonmp4_upload') {
         const file = anonFileInput ? anonFileInput.files[0] : null;
         if (!file) return; // Fallback to normal submit (will trigger validation)
@@ -722,6 +883,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const epProgressStatusDetail = document.getElementById('epProgressStatusDetail');
   const epUploadMethodInput = document.getElementById('epUploadMethodInput');
   const epVideoFile = document.getElementById('epVideoFile');
+  const epAbyssVideoFile = document.getElementById('epAbyssVideoFile');
+  const epAbyssProgressWrapper = document.getElementById('epAbyssProgressWrapper');
+  const epAbyssProgressBarFill = document.getElementById('epAbyssProgressBarFill');
+  const epAbyssProgressTextPercent = document.getElementById('epAbyssProgressTextPercent');
+  const epAbyssProgressStatusDetail = document.getElementById('epAbyssProgressStatusDetail');
   const epAnonVideoFile = document.getElementById('epAnonVideoFile');
   const epAnonProgressWrapper = document.getElementById('epAnonProgressWrapper');
   const epAnonProgressBarFill = document.getElementById('epAnonProgressBarFill');
@@ -733,7 +899,61 @@ document.addEventListener('DOMContentLoaded', () => {
     adminEpisodeForm.addEventListener('submit', async (e) => {
       const currentMethod = epUploadMethodInput ? epUploadMethodInput.value : 'manual';
 
-      // 1. Episode AnonMP4 Upload
+      // 1. Episode Abyss.to Upload
+      if (currentMethod === 'abyss_upload') {
+        const file = epAbyssVideoFile ? epAbyssVideoFile.files[0] : null;
+        if (!file) return;
+
+        e.preventDefault();
+
+        if (epAbyssProgressWrapper) epAbyssProgressWrapper.style.display = 'block';
+        if (epAbyssProgressBarFill) epAbyssProgressBarFill.style.width = '0%';
+        if (epAbyssProgressTextPercent) epAbyssProgressTextPercent.textContent = '0%';
+        if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = 'Инициализиране на качването към Abyss.to...';
+        if (epSubmitBtn) {
+          epSubmitBtn.disabled = true;
+          epSubmitBtn.textContent = '⏳ Качване в Abyss.to...';
+        }
+
+        try {
+          const slug = await uploadDirectToAbyss(
+            file,
+            (loaded, total) => {
+              const percent = Math.round((loaded / total) * 100);
+              if (epAbyssProgressBarFill) epAbyssProgressBarFill.style.width = `${percent}%`;
+              if (epAbyssProgressTextPercent) epAbyssProgressTextPercent.textContent = `${percent}%`;
+              const upMB = (loaded / (1024 * 1024)).toFixed(1);
+              const totMB = (total / (1024 * 1024)).toFixed(1);
+              if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = `Качване в Abyss.to: ${upMB} MB / ${totMB} MB`;
+            },
+            (statusText) => {
+              if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = statusText;
+            }
+          );
+
+          if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = 'Видео файлът е в Abyss.to! Записване на епизода...';
+
+          const epStreamtapeInput = adminEpisodeForm.querySelector('#streamtape_id');
+          if (epStreamtapeInput) {
+            epStreamtapeInput.value = `abyss:${slug}`;
+          }
+
+          epUploadMethodInput.value = 'manual';
+          epAbyssVideoFile.value = '';
+
+          adminEpisodeForm.submit();
+        } catch (err) {
+          if (epAbyssProgressStatusDetail) epAbyssProgressStatusDetail.textContent = 'Грешка: ' + err.message;
+          alert('Грешка при качване в Abyss.to: ' + err.message + '\n\nСъвет: Проверете вашия Abyss API Key в Настройките или качете ръчно в сайта abyss.to.');
+          if (epSubmitBtn) {
+            epSubmitBtn.disabled = false;
+            epSubmitBtn.textContent = '💾 Добави епизода';
+          }
+        }
+        return;
+      }
+
+      // 2. Episode AnonMP4 Upload
       if (currentMethod === 'anonmp4_upload') {
         const file = epAnonVideoFile ? epAnonVideoFile.files[0] : null;
         if (!file) return;

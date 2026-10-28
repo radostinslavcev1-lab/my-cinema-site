@@ -15,8 +15,8 @@ class StreamtapeAPIError(Exception):
 
 def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     """
-    Extracts the clean video ID (Streamtape or AnonMP4) from various link formats, iframe tags, or raw ID strings.
-    server_hint can be: 'auto', 'anonmp4', or 'streamtape'.
+    Extracts the clean video ID (Streamtape, AnonMP4, or Abyss.to) from various link formats, iframe tags, or raw ID strings.
+    server_hint can be: 'auto', 'anonmp4', 'abyss', or 'streamtape'.
     """
     if not raw_value:
         return ""
@@ -24,6 +24,10 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     raw_value = raw_value.strip()
 
     # If already prefixed
+    if raw_value.startswith('abyss:'):
+        clean = raw_value.split(':', 1)[1].strip()
+        return f"abyss:{clean}"
+
     if raw_value.startswith('anon:') or raw_value.startswith('anonmp4:'):
         clean = raw_value.split(':', 1)[1].strip()
         return f"anon:{clean}"
@@ -32,7 +36,25 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value, re.IGNORECASE)
     eval_str = src_match.group(1).strip() if src_match else raw_value
 
-    # 1. Broad AnonMP4 detection (matches anonmp4.to, anonmp4.art, anonmp4.com, etc. with any path)
+    # 1. Abyss.to detection (abyss.to/v/, abyss.to/embed/, abysscdn.com/?v=)
+    abyss_pattern = r'abyss\.to/(?:embed|v)/([a-zA-Z0-9_\-]+)'
+    abyss_match = re.search(abyss_pattern, eval_str, re.IGNORECASE)
+    if abyss_match:
+        return f"abyss:{abyss_match.group(1).strip()}"
+
+    abysscdn_pattern = r'abysscdn\.com/.*[?&]v=([a-zA-Z0-9_\-]+)'
+    abysscdn_match = re.search(abysscdn_pattern, eval_str, re.IGNORECASE)
+    if abysscdn_match:
+        return f"abyss:{abysscdn_match.group(1).strip()}"
+
+    if 'abyss' in eval_str.lower():
+        parts = eval_str.split('?')[0].split('#')[0].rstrip('/').split('/')
+        if parts:
+            clean_id = parts[-1].replace('.mp4', '').replace('.mkv', '').strip()
+            if clean_id:
+                return f"abyss:{clean_id}"
+
+    # 2. Broad AnonMP4 detection (matches anonmp4.to, anonmp4.art, anonmp4.com, etc. with any path)
     anon_pattern = r'anonmp4\.[a-z0-9\-]+/(?:v/|embed/|e/|d/|watch/)?([a-zA-Z0-9_\-]+)'
     anon_match = re.search(anon_pattern, eval_str, re.IGNORECASE)
     if anon_match:
@@ -48,21 +70,23 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
             if clean_id:
                 return f"anon:{clean_id}"
 
-    # 2. Pattern for standard Streamtape embed or watch links
+    # 3. Pattern for standard Streamtape embed or watch links
     st_pattern = r'(?:streamtape\.[a-z]+|streamta\.pe)/(?:e|v)/([a-zA-Z0-9_\-]+)'
     st_match = re.search(st_pattern, eval_str, re.IGNORECASE)
     if st_match:
         return st_match.group(1)
 
-    # 3. Clean raw value if it is a path or URL
+    # 4. Clean raw value if it is a path or URL
     clean_val = eval_str.split('?')[0].split('#')[0].rstrip('/')
     if '/' in clean_val:
         clean_val = clean_val.split('/')[-1]
 
     clean_val = clean_val.replace('.mp4', '').replace('.mkv', '').strip()
 
-    # 4. If explicit server hint is provided
-    if server_hint == 'anonmp4':
+    # 5. If explicit server hint is provided
+    if server_hint == 'abyss':
+        return f"abyss:{clean_val}"
+    elif server_hint == 'anonmp4':
         return f"anon:{clean_val}"
     elif server_hint == 'streamtape':
         return clean_val

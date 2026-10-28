@@ -59,14 +59,38 @@
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
           <h4>Streamtape API</h4>
           <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="document.getElementById('apiSettingsModal').classList.add('active')">
-            ⚙️ Въведи ключ
+            ⚙️ Ключ
           </button>
         </div>
-        <div style="font-size: 1rem; font-weight: 700; color: {{ 'var(--accent-green)' if api_status.valid else 'var(--accent-gold)' }};">
-          {{ 'Свързан (Активен)' if api_status.valid else ('Неконфигуриран' if not api_status.configured else 'Грешка във връзката') }}
+        <div style="font-size: 0.95rem; font-weight: 700; color: {{ 'var(--accent-green)' if api_status.valid else 'var(--accent-gold)' }};">
+          {{ 'Свързан' if api_status.valid else ('Неконфигуриран' if not api_status.configured else 'Грешка') }}
         </div>
-        <small style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 2px;">
+        <small style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 2px;">
           {{ api_status.message }}
+        </small>
+      </div>
+    </div>
+
+    <div class="stat-card" style="position: relative;">
+      <div class="stat-icon purple">
+        {% if abyss_status.valid %}⚡{% else %}⚠️{% endif %}
+      </div>
+      <div class="stat-data" style="flex: 1;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <h4>Abyss.to API</h4>
+          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="document.getElementById('abyssSettingsModal').classList.add('active')">
+            ⚙️ Ключ
+          </button>
+        </div>
+        <div style="font-size: 0.95rem; font-weight: 700; color: {{ 'var(--accent-green)' if abyss_status.valid else 'var(--accent-gold)' }};">
+          {{ 'Свързан (10 GB)' if abyss_status.valid else ('Неконфигуриран' if not current_abyss_key else 'Грешка') }}
+        </div>
+        <small style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 2px;">
+          {% if abyss_status.valid %}
+            Лимит: {{ abyss_status.max_upload_gb }} (Заето: {{ abyss_status.usage_gb }})
+          {% else %}
+            {{ abyss_status.message }}
+          {% endif %}
         </small>
       </div>
     </div>
@@ -80,14 +104,17 @@
 
     <!-- Upload Method Segmented Switcher -->
     <div class="method-switch-container">
+      <button type="button" id="methodAbyssBtn" class="method-btn">
+        ⚡ Метод 1: Abyss.to (До 10 GB с API)
+      </button>
       <button type="button" id="methodAnonBtn" class="method-btn">
-        ⚡ Метод 1: AnonMP4 (Качване до 20 GB)
+        ☁️ Метод 2: AnonMP4 Cloud
       </button>
       <button type="button" id="methodManualBtn" class="method-btn active">
-        ✍️ Метод 2: Ръчен линк / ID (Streamtape или AnonMP4)
+        ✍️ Метод 3: Ръчен линк / ID (Abyss, Anon, Streamtape)
       </button>
       <button type="button" id="methodApiBtn" class="method-btn">
-        🚀 Метод 3: Streamtape API качване
+        🚀 Метод 4: Streamtape API
       </button>
     </div>
 
@@ -231,12 +258,38 @@
           ></textarea>
         </div>
 
-        <!-- METHOD 1 FIELDS: AnonMP4 Upload (up to 20 GB) -->
+        <!-- METHOD 1 FIELDS: Abyss.to Upload (up to 10 GB) -->
+        <div id="abyssUploadFields" class="form-group full-width" style="display: none; margin-top: 10px;">
+          <label>Локален видео файл за качване към Abyss.to Cloud (до 10 GB с API Key)</label>
+          
+          <div class="file-upload-box" id="abyssUploadBox">
+            <div class="file-upload-icon">⚡</div>
+            <h4 style="margin-bottom: 6px;">Плъзнете видео файла тук или кликнете за избор</h4>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">
+              Поддържани формати: .mp4, .mkv, .avi, .mov, .webm (макс. до 10 GB директно)
+            </p>
+            <input type="file" id="abyssFileInput" name="abyss_file" accept=".mp4,.mkv,.avi,.mov,.webm,.flv,.m4v">
+            <div id="abyssFileSelectedName" class="file-selected-name"></div>
+          </div>
+
+          <!-- Abyss.to Upload Progress Bar Indicator -->
+          <div id="abyssProgressWrapper" class="upload-progress-wrapper" style="display: none; margin-top: 14px;">
+            <div class="progress-bar-bg">
+              <div id="abyssProgressBarFill" class="progress-bar-fill" style="background: linear-gradient(90deg, #8b5cf6, #d946ef);"></div>
+            </div>
+            <div class="progress-status-text">
+              <span id="abyssProgressStatusDetail">Качване към Abyss.to...</span>
+              <span id="abyssProgressTextPercent" style="font-weight: 700; color: #a855f7;">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- METHOD 2 FIELDS: AnonMP4 Upload (up to 20 GB) -->
         <div id="anonUploadFields" class="form-group full-width" style="display: none; margin-top: 10px;">
           <label>Локален видео файл за качване към AnonMP4 (до 20 GB, безплатно, без регистрация)</label>
           
           <div class="file-upload-box" id="anonUploadBox">
-            <div class="file-upload-icon">⚡</div>
+            <div class="file-upload-icon">☁️</div>
             <h4 style="margin-bottom: 6px;">Плъзнете видео файла тук или кликнете за избор</h4>
             <p style="color: var(--text-muted); font-size: 0.85rem;">
               Поддържани формати: .mp4, .mkv, .avi, .mov, .webm (до 20 GB без регистрация)
@@ -257,7 +310,7 @@
           </div>
         </div>
 
-        <!-- METHOD 2 FIELDS: Manual Entry (Streamtape or AnonMP4) -->
+        <!-- METHOD 3 FIELDS: Manual Entry (Abyss.to, AnonMP4 or Streamtape) -->
         <div id="manualFields" class="form-group full-width" style="margin-top: 10px;">
           <div id="movieStreamtapeGroup">
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 8px;">
@@ -265,7 +318,8 @@
                 <label for="mediaServerType">Стрийминг сървър</label>
                 <select id="mediaServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
                   <option value="auto" selected>🔍 Автоматично</option>
-                  <option value="anonmp4">⚡ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
+                  <option value="abyss">⚡ Abyss.to Cloud (abyss.to / abysscdn.com)</option>
+                  <option value="anonmp4">☁️ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
                   <option value="streamtape">🚀 Streamtape Cloud</option>
                 </select>
               </div>
@@ -276,12 +330,12 @@
                   id="streamtape_id" 
                   name="streamtape_id" 
                   class="form-control" 
-                  placeholder="https://anonmp4.to/v/... или https://streamtape.com/v/..."
+                  placeholder="https://abyss.to/v/..., https://anonmp4.to/v/... или https://streamtape.com/v/..."
                 >
               </div>
             </div>
             <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
-              Системата автоматично ще разпознае дали линкът е от AnonMP4 или Streamtape и ще конфигурира плейъра.
+              Системата автоматично ще разпознае дали линкът е от Abyss.to, AnonMP4 или Streamtape и ще конфигурира плейъра.
             </small>
           </div>
 
@@ -401,9 +455,16 @@
                     📺 {{ item.episode_count }} еп. (Управление)
                   </a>
                 {% else %}
-                  <code style="font-size: 0.8rem; color: var(--accent-blue); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">
-                    {{ item.streamtape_id if item.streamtape_id else 'Липсва' }}
-                  </code>
+                  <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                    <code style="font-size: 0.8rem; color: var(--accent-blue); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">
+                      {{ item.streamtape_id if item.streamtape_id else 'Липсва' }}
+                    </code>
+                    {% if item.streamtape_id %}
+                      <span class="badge" style="font-size: 0.68rem; padding: 1px 5px; background: {% if 'abyss' in item.streamtape_id %}rgba(139, 92, 246, 0.15); color: #a855f7; border: 1px solid rgba(139, 92, 246, 0.3);{% elif 'anon' in item.streamtape_id %}rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
+                        {{ item.server_name }}
+                      </span>
+                    {% endif %}
+                  </div>
                 {% endif %}
               </td>
 
@@ -514,6 +575,43 @@
         </button>
         <button type="submit" class="btn btn-primary">
           💾 Запази и тествай връзката
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Abyss.to API Settings Modal -->
+<div id="abyssSettingsModal" class="modal-backdrop">
+  <div class="modal-dialog">
+    <h3 class="modal-title">⚡ Abyss.to API Настройки</h3>
+    <p class="modal-body" style="font-size: 0.9rem; margin-bottom: 16px;">
+      Въведете вашия <strong>API Key</strong> от вашия акаунт в <a href="https://abyss.to" target="_blank" style="color: #a855f7; text-decoration: underline;">Abyss.to</a>. С него качвате видеа до 10 GB директно през платформата.
+    </p>
+
+    <form method="POST" action="{{ url_for('admin_settings_abyss') }}">
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="abyss_api_key">Abyss.to API Key *</label>
+        <input 
+          type="text" 
+          id="abyss_api_key" 
+          name="abyss_api_key" 
+          class="form-control" 
+          placeholder="Поставете вашия Abyss API Key тук"
+          value="{{ current_abyss_key }}" 
+          required
+        >
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+          💡 Ключът се използва за директно качване (<code>https://up.abyss.to/{key}</code>) и управление на файловете.
+        </small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('abyssSettingsModal').classList.remove('active')">
+          Отказ
+        </button>
+        <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #7c3aed, #a855f7); border: none;">
+          💾 Запази и провери квотата
         </button>
       </div>
     </form>

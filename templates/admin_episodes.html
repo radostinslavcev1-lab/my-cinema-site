@@ -34,8 +34,11 @@
 
       <!-- Method Switcher for Episode -->
       <div class="method-switch-container" style="margin-bottom: 18px;">
+        <button type="button" id="epMethodAbyssBtn" class="method-btn" onclick="toggleEpMethod('abyss_upload')">
+          ⚡ Abyss.to (10 GB)
+        </button>
         <button type="button" id="epMethodAnonBtn" class="method-btn" onclick="toggleEpMethod('anonmp4_upload')">
-          ⚡ AnonMP4 (20 GB)
+          ☁️ AnonMP4 (20 GB)
         </button>
         <button type="button" id="epMethodManualBtn" class="method-btn active" onclick="toggleEpMethod('manual')">
           ✍️ Линк / ID
@@ -86,7 +89,33 @@
             >
           </div>
 
-          <!-- Method 1: AnonMP4 Upload -->
+          <!-- Method 1: Abyss.to Upload -->
+          <div id="epAbyssGroup" class="form-group full-width" style="display: none;">
+            <label>Изберете видео файл за Abyss.to Cloud (до 10 GB с API Key)</label>
+            <input 
+              type="file" 
+              id="epAbyssVideoFile" 
+              name="abyss_video_file" 
+              class="form-control" 
+              accept=".mp4,.mkv,.avi,.mov,.webm"
+            >
+            <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+              ⚡ Видеото се качва директно към Abyss.to Cloud (до 10 GB).
+            </small>
+
+            <!-- Episode Abyss Progress Bar -->
+            <div id="epAbyssProgressWrapper" class="upload-progress-wrapper" style="margin-top: 14px; display: none;">
+              <div class="progress-bar-bg">
+                <div id="epAbyssProgressBarFill" class="progress-bar-fill" style="background: linear-gradient(90deg, #8b5cf6, #d946ef);"></div>
+              </div>
+              <div class="progress-status-text">
+                <span id="epAbyssProgressStatusDetail">Качване към Abyss.to...</span>
+                <span id="epAbyssProgressTextPercent" style="font-weight: 700; color: #a855f7;">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Method 2: AnonMP4 Upload -->
           <div id="epAnonGroup" class="form-group full-width" style="display: none;">
             <label>Изберете видео файл за AnonMP4 (до 20 GB, безплатно)</label>
             <input 
@@ -97,7 +126,7 @@
               accept=".mp4,.mkv,.avi,.mov,.webm"
             >
             <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-              ⚡ Видеото се качва директно в AnonMP4 с поддръжка до 20 GB.
+              ☁️ Видеото се качва директно в AnonMP4 с поддръжка до 20 GB.
             </small>
 
             <!-- Episode Anon Progress Bar -->
@@ -112,14 +141,15 @@
             </div>
           </div>
 
-          <!-- Method 2: Manual Streamtape or AnonMP4 Link / ID -->
+          <!-- Method 3: Manual Streamtape, AnonMP4 or Abyss Link / ID -->
           <div id="epManualGroup" class="form-group full-width">
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 8px;">
               <div>
                 <label for="epServerType">Стрийминг сървър</label>
                 <select id="epServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
                   <option value="auto" selected>🔍 Автоматично</option>
-                  <option value="anonmp4">⚡ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
+                  <option value="abyss">⚡ Abyss.to Cloud (abyss.to / abysscdn.com)</option>
+                  <option value="anonmp4">☁️ AnonMP4 Cloud (anonmp4.to / anonmp4.art)</option>
                   <option value="streamtape">🚀 Streamtape Cloud</option>
                 </select>
               </div>
@@ -130,12 +160,12 @@
                   id="streamtape_id" 
                   name="streamtape_id" 
                   class="form-control" 
-                  placeholder="https://anonmp4.to/v/... или https://anonmp4.art/embed/..."
+                  placeholder="https://abyss.to/v/..., https://anonmp4.to/v/... или Streamtape"
                 >
               </div>
             </div>
             <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
-              💡 Можете да поставите директно линк за вграждане или гледане от <strong>AnonMP4</strong> (anonmp4.to / anonmp4.art) или <strong>Streamtape</strong>.
+              💡 Можете да поставите директно линк за вграждане или гледане от <strong>Abyss.to</strong>, <strong>AnonMP4</strong> или <strong>Streamtape</strong>.
             </small>
           </div>
 
@@ -196,7 +226,7 @@
                       </strong>
                       <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                         <span>ID: <code style="color: var(--accent-blue);">{{ ep.streamtape_id }}</code></span>
-                        <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: {% if 'anon' in ep.streamtape_id %}rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
+                        <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: {% if 'abyss' in ep.streamtape_id %}rgba(139, 92, 246, 0.15); color: #a855f7; border: 1px solid rgba(139, 92, 246, 0.3);{% elif 'anon' in ep.streamtape_id %}rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
                           {{ ep.server_name }}
                         </span>
                       </div>
@@ -231,18 +261,24 @@
 
 <script>
 function toggleEpMethod(method) {
+  const abyssBtn = document.getElementById('epMethodAbyssBtn');
   const anonBtn = document.getElementById('epMethodAnonBtn');
   const manualBtn = document.getElementById('epMethodManualBtn');
   const apiBtn = document.getElementById('epMethodApiBtn');
   const methodInput = document.getElementById('epUploadMethodInput');
+  const abyssGroup = document.getElementById('epAbyssGroup');
   const anonGroup = document.getElementById('epAnonGroup');
   const manualGroup = document.getElementById('epManualGroup');
   const apiGroup = document.getElementById('epApiGroup');
 
-  [anonBtn, manualBtn, apiBtn].forEach(b => { if (b) b.classList.remove('active'); });
-  [anonGroup, manualGroup, apiGroup].forEach(g => { if (g) g.style.display = 'none'; });
+  [abyssBtn, anonBtn, manualBtn, apiBtn].forEach(b => { if (b) b.classList.remove('active'); });
+  [abyssGroup, anonGroup, manualGroup, apiGroup].forEach(g => { if (g) g.style.display = 'none'; });
 
-  if (method === 'anonmp4_upload') {
+  if (method === 'abyss_upload') {
+    if (abyssBtn) abyssBtn.classList.add('active');
+    methodInput.value = 'abyss_upload';
+    if (abyssGroup) abyssGroup.style.display = 'block';
+  } else if (method === 'anonmp4_upload') {
     if (anonBtn) anonBtn.classList.add('active');
     methodInput.value = 'anonmp4_upload';
     if (anonGroup) anonGroup.style.display = 'block';
