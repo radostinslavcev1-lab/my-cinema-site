@@ -74,8 +74,8 @@ def get_anonmp4_video_info(node_id: str, node_token: str, filename: str = "video
         return {
             'success': True,
             'video_id': video_id,
-            'embed_url': json_data.get('embed_url') or f"https://anonmp4.art/embed/{video_id}",
-            'watch_url': json_data.get('watch_url') or f"https://anonmp4.art/v/{video_id}",
+            'embed_url': json_data.get('embed_url') or f"https://anonmp4.help/embed/{video_id}",
+            'watch_url': json_data.get('watch_url') or f"https://anonmp4.to/v/{video_id}",
             'thumbnail': json_data.get('thumbnail')
         }
     except requests.exceptions.RequestException as e:

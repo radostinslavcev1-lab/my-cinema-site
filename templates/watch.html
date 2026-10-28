@@ -102,9 +102,15 @@
         <button type="button" id="toggleAdShieldBtn" class="player-ctrl-btn active" title="Включи / Изключи блокирането на изскачащи реклами">
           🛡️ Блокиране на изскачащи: <span id="adShieldToggleLabel">ВКЛ</span>
         </button>
-        <button type="button" id="reloadPlayerBtn" class="player-ctrl-btn" title="Презареди видео плейъра">
+        <button type="button" id="reloadPlayerBtn" class="player-ctrl-btn" title="Презареди видео плейъра с нов сесиен ключ">
           🔄 Презареди
         </button>
+        {% set ext_watch = ('https://anonmp4.to/v/' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and 'anon' in active_streamtape_id) else (('https://streamtape.com/v/' ~ active_streamtape_id) if active_streamtape_id else '') %}
+        {% if ext_watch %}
+          <a href="{{ ext_watch }}" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра">
+            ↗️ Цял екран (Външен)
+          </a>
+        {% endif %}
       </div>
     </div>
 

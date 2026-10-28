@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const streamtapeId = btn.dataset.streamtapeId;
-        const fallbackUrl = streamtapeId ? (streamtapeId.startsWith('anon:') ? `https://anonmp4.art/embed/${streamtapeId.split(':')[1]}` : `https://streamtape.com/e/${streamtapeId}/`) : '';
+        const fallbackUrl = streamtapeId ? (streamtapeId.startsWith('anon:') ? `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}` : `https://streamtape.com/e/${streamtapeId}/`) : '';
         const embedUrl = btn.dataset.embedUrl || fallbackUrl;
         const serverName = btn.dataset.serverName || 'Cloud Stream';
         const episodeId = btn.dataset.episodeId;
@@ -158,8 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ensure Ad-Shield sandbox is maintained on episode switch
         applyAdShieldState(isAdShieldActive, false);
 
-        // Update iframe source
-        playerIframe.src = embedUrl;
+        // Update iframe source with fresh cache-buster for AnonMP4
+        const separator = embedUrl.includes('?') ? '&' : '?';
+        const finalUrl = embedUrl.includes('anonmp4') ? `${embedUrl}${separator}_t=${Date.now()}` : embedUrl;
+        playerIframe.src = finalUrl;
 
         // Update active streaming server name if present
         const activeServerEl = document.getElementById('activeServerName');
@@ -304,14 +306,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Reload player button
+  // Reload player button with cache-busting to prevent expired session / used tickets
   if (reloadPlayerBtn && playerIframe) {
     reloadPlayerBtn.addEventListener('click', () => {
-      const currentSrc = playerIframe.src;
-      playerIframe.src = 'about:blank';
-      setTimeout(() => {
-        playerIframe.src = currentSrc;
-      }, 60);
+      let currentSrc = playerIframe.src;
+      if (!currentSrc || currentSrc === 'about:blank') return;
+      if (currentSrc.includes('anonmp4')) {
+        const base = currentSrc.split('?')[0];
+        playerIframe.src = `${base}?_t=${Date.now()}`;
+      } else {
+        playerIframe.src = 'about:blank';
+        setTimeout(() => {
+          playerIframe.src = currentSrc;
+        }, 60);
+      }
     });
   }
 
