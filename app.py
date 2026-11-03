@@ -61,8 +61,8 @@ STREAMTAPE_KEY = os.environ.get('STREAMTAPE_KEY', '').strip()
 ABYSS_API_KEY = os.environ.get('ABYSS_API_KEY', 'e46f14fa7d0b24e0e237e036071887b2').strip()
 
 # Admin credentials
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin').strip()
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123').strip()
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'Radkoo_admin123').strip()
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Radi_admina').strip()
 
 # Initialize DB with App
 db.init_app(app)
