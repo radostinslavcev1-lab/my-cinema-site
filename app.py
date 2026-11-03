@@ -567,13 +567,13 @@ def admin_add_media():
                 except Exception:
                     pass
     else:
-        # Method: Manual entry (Abyss / Hydrax or Streamtape)
+        # Method: Manual entry (Google Drive, Abyss / Hydrax or Streamtape)
         raw_streamtape_input = request.form.get('streamtape_id', '').strip()
         server_type = request.form.get('server_type', 'auto').strip()
         streamtape_id = extract_streamtape_id(raw_streamtape_input, server_type)
 
         if media_type == 'movie' and not streamtape_id:
-            flash('За филм е необходимо да въведете валиден Abyss / Hydrax или Streamtape ID / линк!', 'danger')
+            flash('За филм е необходимо да въведете валиден Google Drive, Abyss / Hydrax или Streamtape ID / линк!', 'danger')
             return redirect(url_for('admin_dashboard'))
 
     # Handle image file uploads
@@ -816,7 +816,7 @@ def admin_add_episode(media_id):
         streamtape_id = extract_streamtape_id(raw_input, server_type)
 
     if not streamtape_id:
-        flash('Необходим е валиден Abyss / Hydrax или Streamtape ID / линк за епизода!', 'danger')
+        flash('Необходим е валиден Google Drive, Abyss / Hydrax или Streamtape ID / линк за епизода!', 'danger')
         return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
     new_ep = Episode(

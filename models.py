@@ -6,18 +6,36 @@ from database import db
 def resolve_embed_url(video_identifier: str) -> str:
     """
     Resolves video identifier or URL to a playable iframe embed URL.
-    Supports Abyss.to, AnonMP4, and Streamtape.
+    Supports Google Drive, Abyss.to / Hydrax, and Streamtape.
     """
     if not video_identifier:
         return None
     val = video_identifier.strip()
 
-    # 1. Abyss.to / Hydrax
+    # 1. Google Drive (gdrive:ID or drive:ID)
+    if val.startswith('gdrive:') or val.startswith('drive:'):
+        clean_id = val.split(':', 1)[1].strip()
+        return f"https://drive.google.com/file/d/{clean_id}/preview"
+
+    # 2. Abyss.to / Hydrax
     if val.startswith('abyss:') or val.startswith('hydrax:'):
         clean_id = val.split(':', 1)[1].strip()
         return f"https://playhydrax.com/?v={clean_id}"
 
     if val.startswith('http://') or val.startswith('https://'):
+        # Google Drive full URLs
+        if 'drive.google.com' in val or 'docs.google.com' in val:
+            m_file = re.search(r'/file/d/([a-zA-Z0-9_\-]+)', val)
+            if m_file:
+                return f"https://drive.google.com/file/d/{m_file.group(1)}/preview"
+            m_id = re.search(r'[?&]id=([a-zA-Z0-9_\-]+)', val)
+            if m_id:
+                return f"https://drive.google.com/file/d/{m_id.group(1)}/preview"
+            tokens = re.findall(r'[a-zA-Z0-9_\-]{20,}', val)
+            if tokens:
+                return f"https://drive.google.com/file/d/{tokens[0]}/preview"
+            return val
+
         if 'abyss.to' in val or 'abysscdn.com' in val or 'hydrax' in val:
             m_v = re.search(r'[?&]v=([a-zA-Z0-9_\-]+)', val)
             if m_v:
@@ -41,7 +59,7 @@ def resolve_embed_url(video_identifier: str) -> str:
             return val.replace('streamtape.com/v/', 'streamtape.com/e/')
         return val
 
-    # 2. AnonMP4
+    # 3. AnonMP4 (legacy fallback)
     if val.startswith('anon:') or val.startswith('anonmp4:'):
         clean_id = val.split(':', 1)[1].strip()
         return f"https://anonmp4.help/embed/{clean_id}"
@@ -50,7 +68,7 @@ def resolve_embed_url(video_identifier: str) -> str:
         clean_id = val.replace('anon:', '').replace('anonmp4:', '').strip()
         return f"https://anonmp4.help/embed/{clean_id}"
 
-    # 3. Streamtape
+    # 4. Streamtape
     return f"https://streamtape.com/e/{val}/"
 
 
@@ -59,6 +77,8 @@ def get_server_name(video_identifier: str) -> str:
     if not video_identifier:
         return "Cloud Stream"
     val = video_identifier.strip().lower()
+    if 'gdrive' in val or 'drive.google' in val or 'docs.google' in val or val.startswith('drive:'):
+        return "Google Drive"
     if 'abyss' in val or 'hydrax' in val:
         return "Abyss / Hydrax Cloud"
     if 'anon' in val:

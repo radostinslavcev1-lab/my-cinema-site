@@ -38,7 +38,7 @@
           ⚡ Abyss / Hydrax (10 GB)
         </button>
         <button type="button" id="epMethodManualBtn" class="method-btn active" onclick="toggleEpMethod('manual')">
-          ✍️ Линк / ID
+          ✍️ Линк / ID (Google Drive / Hydrax / Streamtape)
         </button>
         <button type="button" id="epMethodApiBtn" class="method-btn" onclick="toggleEpMethod('api_upload')">
           🚀 Streamtape API
@@ -112,13 +112,14 @@
             </div>
           </div>
 
-          <!-- Method 2: Manual Streamtape or Abyss / Hydrax Link / ID -->
+          <!-- Method 2: Manual Google Drive, Abyss / Hydrax or Streamtape Link / ID -->
           <div id="epManualGroup" class="form-group full-width">
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 8px;">
               <div>
                 <label for="epServerType">Стрийминг сървър</label>
                 <select id="epServerType" name="server_type" class="form-control" style="background: var(--bg-card);">
                   <option value="auto" selected>🔍 Автоматично</option>
+                  <option value="gdrive">📁 Google Drive (drive.google.com)</option>
                   <option value="abyss">⚡ Abyss / Hydrax Cloud (hydrax.net / playhydrax.com / abyss.to)</option>
                   <option value="streamtape">🚀 Streamtape Cloud</option>
                 </select>
@@ -130,12 +131,12 @@
                   id="streamtape_id" 
                   name="streamtape_id" 
                   class="form-control" 
-                  placeholder="https://playhydrax.com/?v=... или https://streamtape.com/v/..."
+                  placeholder="https://drive.google.com/file/d/... или https://playhydrax.com/?v=... или Streamtape"
                 >
               </div>
             </div>
             <small style="color: var(--text-muted); font-size: 0.75rem; display: block;">
-              💡 Можете да поставите директно линк за вграждане или гледане от <strong>Hydrax / Abyss</strong> или <strong>Streamtape</strong>.
+              💡 Можете да поставите директно линк за вграждане или гледане от <strong>Google Drive</strong>, <strong>Hydrax / Abyss</strong> или <strong>Streamtape</strong>.
             </small>
           </div>
 
@@ -196,7 +197,7 @@
                       </strong>
                       <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                         <span>ID: <code style="color: var(--accent-blue);">{{ ep.streamtape_id }}</code></span>
-                        <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: {% if 'abyss' in ep.streamtape_id or 'hydrax' in ep.streamtape_id %}rgba(139, 92, 246, 0.15); color: #a855f7; border: 1px solid rgba(139, 92, 246, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
+                        <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: {% if 'gdrive' in ep.streamtape_id or 'drive' in ep.streamtape_id %}rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);{% elif 'abyss' in ep.streamtape_id or 'hydrax' in ep.streamtape_id %}rgba(139, 92, 246, 0.15); color: #a855f7; border: 1px solid rgba(139, 92, 246, 0.3);{% else %}rgba(229, 9, 20, 0.15); color: var(--accent-red); border: 1px solid rgba(229, 9, 20, 0.3);{% endif %}">
                           {{ ep.server_name }}
                         </span>
                       </div>

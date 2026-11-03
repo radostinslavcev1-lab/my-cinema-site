@@ -15,8 +15,8 @@ class StreamtapeAPIError(Exception):
 
 def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     """
-    Extracts the clean video ID (Streamtape, AnonMP4, or Abyss.to) from various link formats, iframe tags, or raw ID strings.
-    server_hint can be: 'auto', 'anonmp4', 'abyss', or 'streamtape'.
+    Extracts the clean video ID (Google Drive, Abyss.to, or Streamtape) from various link formats, iframe tags, or raw ID strings.
+    server_hint can be: 'auto', 'gdrive', 'abyss', or 'streamtape'.
     """
     if not raw_value:
         return ""
@@ -24,6 +24,10 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     raw_value = raw_value.strip()
 
     # If already prefixed
+    if raw_value.startswith('gdrive:') or raw_value.startswith('drive:'):
+        clean = raw_value.split(':', 1)[1].strip()
+        return f"gdrive:{clean}"
+
     if raw_value.startswith('abyss:'):
         clean = raw_value.split(':', 1)[1].strip()
         return f"abyss:{clean}"
@@ -36,7 +40,24 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
     src_match = re.search(r'src=["\']([^"\']+)["\']', raw_value, re.IGNORECASE)
     eval_str = src_match.group(1).strip() if src_match else raw_value
 
-    # 1. Abyss.to / Hydrax detection (playhydrax.com/?v=, hydrax.net, abyss.to/v/, abysscdn.com/?v=)
+    # 1. Google Drive detection (drive.google.com, docs.google.com)
+    if 'drive.google.com' in eval_str.lower() or 'docs.google.com' in eval_str.lower():
+        # Match /file/d/<id>
+        m_file = re.search(r'/file/d/([a-zA-Z0-9_\-]+)', eval_str)
+        if m_file:
+            return f"gdrive:{m_file.group(1).strip()}"
+
+        # Match ?id=<id> or &id=<id>
+        m_id = re.search(r'[?&]id=([a-zA-Z0-9_\-]+)', eval_str)
+        if m_id:
+            return f"gdrive:{m_id.group(1).strip()}"
+
+        # Generic token extract for Google Drive URLs
+        tokens = re.findall(r'[a-zA-Z0-9_\-]{20,}', eval_str)
+        if tokens:
+            return f"gdrive:{tokens[0]}"
+
+    # 2. Abyss.to / Hydrax detection (playhydrax.com/?v=, hydrax.net, abyss.to/v/, abysscdn.com/?v=)
     hydrax_v_pattern = r'(?:playhydrax\.com|abysscdn\.com|hydrax\.net)/.*[?&]v=([a-zA-Z0-9_\-]+)'
     hydrax_v_match = re.search(hydrax_v_pattern, eval_str, re.IGNORECASE)
     if hydrax_v_match:
@@ -54,7 +75,7 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
             if clean_id:
                 return f"abyss:{clean_id}"
 
-    # 2. Broad AnonMP4 detection (matches anonmp4.to, anonmp4.art, anonmp4.com, etc. with any path)
+    # 3. Broad AnonMP4 detection (matches anonmp4.to, anonmp4.art, anonmp4.com, etc. with any path)
     anon_pattern = r'anonmp4\.[a-z0-9\-]+/(?:v/|embed/|e/|d/|watch/)?([a-zA-Z0-9_\-]+)'
     anon_match = re.search(anon_pattern, eval_str, re.IGNORECASE)
     if anon_match:
@@ -70,21 +91,23 @@ def extract_streamtape_id(raw_value: str, server_hint: str = 'auto') -> str:
             if clean_id:
                 return f"anon:{clean_id}"
 
-    # 3. Pattern for standard Streamtape embed or watch links
+    # 4. Pattern for standard Streamtape embed or watch links
     st_pattern = r'(?:streamtape\.[a-z]+|streamta\.pe)/(?:e|v)/([a-zA-Z0-9_\-]+)'
     st_match = re.search(st_pattern, eval_str, re.IGNORECASE)
     if st_match:
         return st_match.group(1)
 
-    # 4. Clean raw value if it is a path or URL
+    # 5. Clean raw value if it is a path or URL
     clean_val = eval_str.split('?')[0].split('#')[0].rstrip('/')
     if '/' in clean_val:
         clean_val = clean_val.split('/')[-1]
 
     clean_val = clean_val.replace('.mp4', '').replace('.mkv', '').strip()
 
-    # 5. If explicit server hint is provided
-    if server_hint == 'abyss':
+    # 6. If explicit server hint is provided
+    if server_hint in ('gdrive', 'drive', 'google_drive'):
+        return f"gdrive:{clean_val}"
+    elif server_hint == 'abyss':
         return f"abyss:{clean_val}"
     elif server_hint == 'anonmp4':
         return f"anon:{clean_val}"

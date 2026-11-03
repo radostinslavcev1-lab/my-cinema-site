@@ -149,7 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const streamtapeId = btn.dataset.streamtapeId;
         let fallbackUrl = '';
         if (streamtapeId) {
-          if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
+          if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
+            fallbackUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/preview`;
+          } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
             fallbackUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
           } else if (streamtapeId.startsWith('anon:')) {
             fallbackUrl = `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}`;
@@ -280,6 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!playerIframe) return;
 
     const disallowsSandbox = playerIframe.src && (
+      playerIframe.src.includes('drive.google.com') ||
+      playerIframe.src.includes('docs.google.com') ||
       playerIframe.src.includes('streamtape.com') ||
       playerIframe.src.includes('playhydrax.com') ||
       playerIframe.src.includes('hydrax.net') ||
@@ -370,7 +374,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const select = form.querySelector('select[name="server_type"]');
       if (!select) return;
 
-      if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.includes('hydrax') || val.startsWith('abyss:') || val.startsWith('hydrax:')) {
+      if (val.includes('drive.google.com') || val.includes('docs.google.com') || val.startsWith('gdrive:') || val.startsWith('drive:')) {
+        select.value = 'gdrive';
+      } else if (val.includes('abyss.to') || val.includes('abysscdn.com') || val.includes('hydrax') || val.startsWith('abyss:') || val.startsWith('hydrax:')) {
         select.value = 'abyss';
       } else if (val.includes('streamtape') || val.includes('streamta.pe')) {
         select.value = 'streamtape';

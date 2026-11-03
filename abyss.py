@@ -219,3 +219,40 @@ def extract_abyss_id(raw_value: str) -> str:
     # Raw slug clean-up
     parts = eval_str.split("?")[0].rstrip("/").split("/")
     return parts[-1].strip()
+
+
+def remote_upload_google_drive(file_id: str, token: str, folder_id: str = None, timeout: int = 30) -> dict:
+    """
+    Remotely transfers a file from Google Drive to Abyss.to using Google Drive fileId.
+    Endpoint: POST /v1/remote/drive/:fileId
+    Requires Bearer token from login_abyss.
+    """
+    if not file_id:
+        raise AbyssAPIError("Липсва Google Drive File ID.")
+    if not token:
+        raise AbyssAPIError("За отдалечено качване от Google Drive към Abyss е необходим Auth Token.")
+
+    # Extract clean fileId if a full URL was passed
+    m_file = re.search(r'/file/d/([a-zA-Z0-9_\-]+)', file_id)
+    if m_file:
+        clean_file_id = m_file.group(1).strip()
+    else:
+        m_id = re.search(r'[?&]id=([a-zA-Z0-9_\-]+)', file_id)
+        clean_file_id = m_id.group(1).strip() if m_id else file_id.replace('gdrive:', '').replace('drive:', '').strip()
+
+    url = f"{ABYSS_API_BASE}/v1/remote/drive/{clean_file_id}"
+    headers = {
+        "Authorization": f"Bearer {token.strip()}"
+    }
+    params = {}
+    if folder_id:
+        params["folderId"] = folder_id
+
+    try:
+        resp = requests.post(url, headers=headers, params=params, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Abyss.to Google Drive remote upload error: {e}")
+        raise AbyssAPIError(f"Грешка при отдалечено качване от Google Drive: {str(e)}")
+
