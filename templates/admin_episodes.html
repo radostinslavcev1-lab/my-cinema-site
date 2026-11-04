@@ -264,10 +264,10 @@
                         <button 
                           type="submit" 
                           class="btn btn-sm btn-secondary" 
-                          style="padding: 5px 8px; font-size: 0.8rem; color: {{ 'var(--accent-green)' if ep.is_locked else 'var(--accent-gold)' }};" 
-                          title="{{ 'Отключи епизода за всички' if ep.is_locked else 'Заключи епизода (Очаквайте скоро)' }}"
+                          style="padding: 5px 8px; font-size: 0.8rem; color: {{ 'var(--accent-green)' if ep.is_currently_locked else 'var(--accent-gold)' }};" 
+                          title="{{ 'Отключи епизода за всички' if ep.is_currently_locked else 'Заключи епизода (Очаквайте скоро)' }}"
                         >
-                          {{ '🔓 Отключи' if ep.is_locked else '🔒 Заключи' }}
+                          {{ '🔓 Отключи' if ep.is_currently_locked else '🔒 Заключи' }}
                         </button>
                       </form>
 
@@ -277,7 +277,7 @@
                         class="btn btn-secondary btn-sm" 
                         style="padding: 5px 8px;" 
                         title="Настройки на премиера и съобщение" 
-                        onclick="openEditLockModal({{ ep.id }}, '{{ ep.display_code }}: {{ ep.title if ep.title else '' }}', {{ 'true' if ep.is_locked else 'false' }}, '{{ ep.release_date_iso or '' }}', '{{ ep.custom_message or '' }}')"
+                        onclick="openEditLockModal({{ ep.id }}, '{{ ep.display_code }}: {{ ep.title if ep.title else '' }}', {{ 'true' if ep.is_currently_locked else 'false' }}, '{{ ep.release_date_iso or '' }}', '{{ ep.custom_message or '' }}')"
                       >
                         ⏱️
                       </button>
@@ -365,18 +365,32 @@ function openEditLockModal(epId, epTitle, isLocked, releaseIso, customMsg) {
 
   form.action = `/admin/episode/update-lock/${epId}`;
   titleEl.textContent = epTitle;
-  lockedCheck.checked = isLocked;
 
   // Format ISO (YYYY-MM-DDTHH:MM:SS) to (YYYY-MM-DDTHH:MM) for datetime-local
   if (releaseIso && releaseIso.length >= 16) {
     dateInput.value = releaseIso.substring(0, 16);
+    lockedCheck.checked = true;
   } else {
     dateInput.value = '';
+    lockedCheck.checked = isLocked;
   }
 
   msgInput.value = customMsg || '';
   modal.classList.add('active');
 }
+
+// Auto-check the locked checkbox whenever a date is selected
+document.addEventListener('DOMContentLoaded', () => {
+  const modalDate = document.getElementById('modalReleaseDate');
+  const modalLock = document.getElementById('modalIsLocked');
+  if (modalDate && modalLock) {
+    modalDate.addEventListener('input', () => {
+      if (modalDate.value) {
+        modalLock.checked = true;
+      }
+    });
+  }
+});
 
 function toggleEpMethod(method) {
   const abyssBtn = document.getElementById('epMethodAbyssBtn');

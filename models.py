@@ -1,6 +1,11 @@
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from database import db
+
+
+def get_current_bulgarian_time() -> datetime:
+    """Returns current Bulgarian local time (UTC+2) as naive datetime for accurate comparisons."""
+    return datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=2))).replace(tzinfo=None)
 
 
 def resolve_embed_url(video_identifier: str) -> str:
@@ -213,15 +218,21 @@ class Episode(db.Model):
     @property
     def is_currently_locked(self):
         """
-        Returns True if episode is locked and release_date is either unset or in the future.
-        If release_date has arrived/passed, it automatically unlocks for visitors.
+        Returns True if episode is locked for normal visitors.
+        Rule:
+        1. If release_date is set in the future (compared to Bulgarian time) -> ALWAYS LOCKED!
+        2. If release_date is in the past -> UNLOCKED (premiere has arrived).
+        3. If no release_date is set -> governed by manual is_locked flag.
         """
-        if not getattr(self, 'is_locked', False):
-            return False
         rel_date = getattr(self, 'release_date', None)
-        if rel_date and datetime.utcnow() >= rel_date:
-            return False
-        return True
+        if rel_date:
+            curr_bg = get_current_bulgarian_time()
+            if curr_bg < rel_date:
+                return True
+            else:
+                return False
+
+        return bool(getattr(self, 'is_locked', False))
 
     @property
     def formatted_release_date(self):

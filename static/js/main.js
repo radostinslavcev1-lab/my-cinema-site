@@ -256,22 +256,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const episodeId = btn.dataset.episodeId;
         const episodeTitle = btn.dataset.episodeTitle;
 
-        // Check if admin is currently previewing normal player
-        const hasAdminBanner = document.querySelector('.admin-locked-notice-banner') !== null;
+        // Check if current user is admin
+        const isAdmin = document.body.dataset.isAdmin === '1';
 
-        if (isLocked && (!hasAdminBanner || isVisitorPreviewActive)) {
-          // Locked episode for visitors: Show Coming Soon overlay
+        if (isLocked && (!isAdmin || isVisitorPreviewActive)) {
+          // Locked episode for visitors: Completely suppress player & show Coming Soon overlay
           if (playerIframe) {
             playerIframe.style.display = 'none';
-            playerIframe.src = 'about:blank';
+            playerIframe.src = '';
           }
           if (playerUnavailableBox) playerUnavailableBox.style.display = 'none';
           if (playerComingSoon) {
             playerComingSoon.style.display = 'flex';
+            const csTitle = document.getElementById('csTitle');
             const csEpTitle = document.getElementById('csEpisodeTitle');
             const csMessage = document.getElementById('csMessage');
             const csDateWrap = document.getElementById('csDateWrapper');
             const csDateText = document.getElementById('csDateText');
+
+            const relDate = btn.dataset.releaseDate;
+            const relIso = btn.dataset.releaseIso;
+
+            if (csTitle) {
+              csTitle.textContent = relDate ? 'Премиера скоро' : 'Очаквайте скоро';
+            }
 
             if (csEpTitle && episodeTitle) csEpTitle.textContent = episodeTitle;
             
@@ -280,13 +288,15 @@ document.addEventListener('DOMContentLoaded', () => {
               if (customMsg) {
                 csMessage.textContent = customMsg;
                 csMessage.style.display = 'block';
+              } else if (relDate) {
+                csMessage.textContent = 'Този епизод все още не е достъпен. Премиерата ще се състои на посочената дата!';
+                csMessage.style.display = 'block';
               } else {
-                csMessage.style.display = 'none';
+                csMessage.textContent = 'Този епизод все още не е достъпен. Очаквайте го скоро в CINEMAX!';
+                csMessage.style.display = 'block';
               }
             }
 
-            const relDate = btn.dataset.releaseDate;
-            const relIso = btn.dataset.releaseIso;
             if (csDateWrap && csDateText) {
               if (relDate) {
                 csDateText.textContent = relDate;
@@ -299,7 +309,10 @@ document.addEventListener('DOMContentLoaded', () => {
             startCountdown(relIso);
           }
 
-          if (extWatchBtn) extWatchBtn.style.display = 'none';
+          if (extWatchBtn) {
+            extWatchBtn.style.display = 'none';
+            extWatchBtn.href = '#';
+          }
         } else {
           // Unlocked episode or Admin Preview mode
           if (playerComingSoon) playerComingSoon.style.display = 'none';
@@ -312,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           if (extWatchBtn) {
-            if (streamtapeId) {
+            if (streamtapeId && (!isLocked || isAdmin)) {
               let extUrl = '';
               if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
                 extUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/view`;
@@ -325,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
               extWatchBtn.style.display = 'inline-flex';
             } else {
               extWatchBtn.style.display = 'none';
+              extWatchBtn.href = '#';
             }
           }
         }

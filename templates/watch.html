@@ -125,8 +125,12 @@
           🔄 Презареди
         </button>
         {% set ext_watch = ('https://drive.google.com/file/d/' ~ active_streamtape_id.split(':')[1] ~ '/view') if (active_streamtape_id and ('gdrive' in active_streamtape_id or 'drive' in active_streamtape_id)) else (('https://playhydrax.com/?v=' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and ('abyss' in active_streamtape_id or 'hydrax' in active_streamtape_id)) else (('https://streamtape.com/v/' ~ active_streamtape_id) if active_streamtape_id else '')) %}
-        {% if ext_watch %}
-          <a href="{{ ext_watch }}" id="extWatchBtn" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра" style="{% if is_episode_locked and not is_admin %}display: none;{% endif %}">
+        {% if ext_watch and (not is_episode_locked or is_admin) %}
+          <a href="{{ ext_watch }}" id="extWatchBtn" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра">
+            ↗️ Цял екран (Външен)
+          </a>
+        {% else %}
+          <a href="#" id="extWatchBtn" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" style="display: none;">
             ↗️ Цял екран (Външен)
           </a>
         {% endif %}
@@ -140,12 +144,18 @@
           <div class="coming-soon-icon-wrap">
             <span class="coming-soon-icon">⏳</span>
           </div>
-          <div class="coming-soon-badge">🔒 ПРЕМИЕРА</div>
-          <h2 class="coming-soon-title" id="csTitle">Очаквайте скоро</h2>
+          <div class="coming-soon-badge">🔒 ОЧАКВАЙТЕ СКОРО</div>
+          <h2 class="coming-soon-title" id="csTitle">
+            {% if current_episode and current_episode.release_date %}
+              Премиера скоро
+            {% else %}
+              Очаквайте скоро
+            {% endif %}
+          </h2>
           <p class="coming-soon-ep" id="csEpisodeTitle">{{ current_episode.display_title if current_episode else '' }}</p>
 
           <div id="csMessage" class="coming-soon-custom-msg" style="{% if not (current_episode and current_episode.custom_message) %}display: none;{% endif %}">
-            {{ current_episode.custom_message if current_episode else '' }}
+            {{ current_episode.custom_message if (current_episode and current_episode.custom_message) else '' }}
           </div>
 
           {% set has_rel_date = current_episode and current_episode.release_date %}
@@ -167,41 +177,40 @@
       </div>
 
       <!-- 2. IFRAME VIDEO PLAYER (FOR ACTIVE / UNLOCKED EPISODES OR ADMIN PREVIEW) -->
-      {% if active_embed_url or active_streamtape_id %}
-        <iframe 
-          id="playerIframe"
-          class="player-iframe"
-          style="{% if is_episode_locked and not is_admin %}display: none;{% endif %}"
-          src="{{ active_embed_url if (active_embed_url and (not is_episode_locked or is_admin)) else '' }}" 
-          width="100%" 
-          height="100%" 
-          frameborder="0" 
-          allowfullscreen="true"
-          webkitallowfullscreen="true"
-          mozallowfullscreen="true"
-          scrolling="no"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-        ></iframe>
-      {% else %}
-        <div class="player-unavailable" id="playerUnavailableBox" style="{% if is_episode_locked %}display: none;{% endif %}">
-          <div class="player-unavailable-icon">⚠️</div>
-          <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Видеото не е налично</h3>
-          <p style="color: var(--text-muted); max-width: 480px; margin-bottom: 20px;">
-            Все още не е зададен Video ID за това заглавие или епизод.
-          </p>
-          {% if is_admin %}
-            {% if item.media_type == 'series' %}
-              <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-primary">
-                ➕ Добави епизод с видео
-              </a>
-            {% else %}
-              <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-primary">
-                ⚙️ Въведи Video ID
-              </a>
-            {% endif %}
+      <iframe 
+        id="playerIframe"
+        class="player-iframe"
+        style="{% if (is_episode_locked and not is_admin) or (not active_embed_url and not is_admin) %}display: none;{% endif %}"
+        src="{{ active_embed_url if (active_embed_url and (not is_episode_locked or is_admin)) else '' }}" 
+        width="100%" 
+        height="100%" 
+        frameborder="0" 
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true"
+        scrolling="no"
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+      ></iframe>
+
+      <!-- 3. UNAVAILABLE BOX -->
+      <div class="player-unavailable" id="playerUnavailableBox" style="{% if (is_episode_locked and not is_admin) or active_embed_url %}display: none;{% endif %}">
+        <div class="player-unavailable-icon">⚠️</div>
+        <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Видеото не е налично</h3>
+        <p style="color: var(--text-muted); max-width: 480px; margin-bottom: 20px;">
+          Все още не е зададен Video ID за това заглавие или епизод.
+        </p>
+        {% if is_admin %}
+          {% if item.media_type == 'series' %}
+            <a href="{{ url_for('admin_manage_episodes', media_id=item.id) }}" class="btn btn-primary">
+              ➕ Добави епизод с видео
+            </a>
+          {% else %}
+            <a href="{{ url_for('admin_edit_media', id=item.id) }}" class="btn btn-primary">
+              ⚙️ Въведи Video ID
+            </a>
           {% endif %}
-        </div>
-      {% endif %}
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -260,7 +269,9 @@
                 <div class="episode-btn-num">
                   {{ ep.display_code }}
                   {% if ep.is_currently_locked %}
-                    <span style="font-size: 0.65rem; color: #f87171; margin-left: 4px;">[Очаквайте]</span>
+                    <span style="font-size: 0.65rem; color: #f87171; margin-left: 4px; font-weight: 700;">
+                      🔒 [Очаквайте{% if ep.release_date %} на {{ ep.release_date.strftime('%d.%m') }}{% endif %}]
+                    </span>
                   {% endif %}
                 </div>
                 <div class="episode-btn-title" title="{{ ep.title if ep.title else ep.display_code }}">

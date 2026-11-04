@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from sqlalchemy import inspect, text
 
 from database import db
-from models import MediaItem, Episode, SiteSetting
+from models import MediaItem, Episode, SiteSetting, get_current_bulgarian_time
 from streamtape import (
     extract_streamtape_id, upload_file_to_streamtape,
     check_api_status, StreamtapeAPIError
@@ -911,6 +911,13 @@ def admin_add_episode(media_id):
             except Exception:
                 release_date = None
 
+    curr_bg = get_current_bulgarian_time()
+    user_checked = bool(request.form.get('is_locked'))
+    if release_date and release_date > curr_bg:
+        is_locked = True
+    else:
+        is_locked = user_checked
+
     custom_message = request.form.get('custom_message', '').strip() or None
 
     new_ep = Episode(
@@ -927,7 +934,7 @@ def admin_add_episode(media_id):
     db.session.add(new_ep)
     db.session.commit()
 
-    lock_note = " (🔒 Заключен за премиера)" if is_locked else ""
+    lock_note = " (🔒 Заключен за премиера)" if new_ep.is_currently_locked else ""
     flash(f"Епизод S{season_num:02d}E{episode_num:02d} беше добавен успешно!{lock_note}", 'success')
     return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
@@ -937,12 +944,17 @@ def admin_add_episode(media_id):
 def admin_toggle_episode_lock(id):
     """Toggles locked status of an episode directly."""
     ep = Episode.query.get_or_404(id)
-    ep.is_locked = not ep.is_locked
-    db.session.commit()
-    if ep.is_locked:
-        flash(f"🔒 Епизод {ep.display_code} беше заключен (Очаквайте скоро).", 'warning')
-    else:
+    if ep.is_currently_locked:
+        # Unlock immediately and remove future date restriction
+        ep.is_locked = False
+        ep.release_date = None
+        db.session.commit()
         flash(f"🔓 Епизод {ep.display_code} беше отключен успешно за всички посетители.", 'success')
+    else:
+        # Lock immediately
+        ep.is_locked = True
+        db.session.commit()
+        flash(f"🔒 Епизод {ep.display_code} беше заключен (Очаквайте скоро).", 'warning')
     return redirect(request.referrer or url_for('admin_manage_episodes', media_id=ep.media_id))
 
 
@@ -951,7 +963,6 @@ def admin_toggle_episode_lock(id):
 def admin_update_episode_lock(id):
     """Updates release date and custom message on an episode."""
     ep = Episode.query.get_or_404(id)
-    ep.is_locked = bool(request.form.get('is_locked'))
 
     release_date_str = request.form.get('release_date', '').strip()
     if release_date_str:
@@ -961,13 +972,26 @@ def admin_update_episode_lock(id):
             try:
                 ep.release_date = datetime.fromisoformat(release_date_str)
             except Exception:
-                pass
+                ep.release_date = None
     else:
         ep.release_date = None
 
+    curr_bg = get_current_bulgarian_time()
+    user_checked = bool(request.form.get('is_locked'))
+    if ep.release_date and ep.release_date > curr_bg:
+        ep.is_locked = True
+    else:
+        ep.is_locked = user_checked
+
     ep.custom_message = request.form.get('custom_message', '').strip() or None
     db.session.commit()
-    flash(f"Настройките за премиера на епизод {ep.display_code} бяха обновени успешно.", 'success')
+
+    if ep.is_currently_locked:
+        date_info = f" до {ep.formatted_release_date}" if ep.release_date else ""
+        flash(f"🔒 Епизод {ep.display_code} е успешно заключен (Очаквайте скоро{date_info})!", 'warning')
+    else:
+        flash(f"🔓 Епизод {ep.display_code} е отключен и достъпен за всички.", 'success')
+
     return redirect(request.referrer or url_for('admin_manage_episodes', media_id=ep.media_id))
 
 

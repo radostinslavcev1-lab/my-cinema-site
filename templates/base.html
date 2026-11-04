@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body data-is-admin="{{ '1' if is_admin else '0' }}">
 
   {% if is_admin and site_is_locked %}
     <!-- Admin Maintenance Sticky Alert -->
