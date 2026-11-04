@@ -189,43 +189,6 @@
     {% endif %}
   </nav>
 
-  <!-- Anti-Screenshot & Anti-Screen-Recording Security Shield Modal (HBO Max Style DRM) -->
-  <div id="screenShieldModal" class="shield-modal-backdrop" aria-hidden="{{ 'false' if request.args.get('blocked') == 'recording' else 'true' }}" style="{% if request.args.get('blocked') == 'recording' %}display: flex;{% else %}display: none;{% endif %}">
-    <div class="shield-modal-dialog">
-      <!-- Close button (Хикс X) -->
-      <button type="button" class="shield-close-btn" id="shieldCloseXBtn" title="Затвори бележката" aria-label="Затвори">✕</button>
-
-      <div class="shield-modal-icon-wrap">
-        <span class="shield-modal-icon">🚫</span>
-      </div>
-
-      <div class="shield-modal-badge">🛡️ АКТИВНА DRM ЗАЩИТА (BLACK SCREEN)</div>
-
-      <h2 class="shield-modal-title">Записът на екрана е забранен!</h2>
-
-      <p class="shield-modal-desc">
-        Скрийншотването и скрийкордването на съдържанието са <strong>категорично забранени</strong>. Точно както при <strong>HBO Max</strong> и водещите стрийминг платформи, при всеки опит за запис или снимка екранът се затъмнява в <strong>плътно черно</strong>, а видеото спира.
-      </p>
-
-      <div class="shield-modal-alert">
-        <span class="shield-alert-icon">⚠️</span>
-        <div class="shield-alert-text">
-          <strong>Засечен софтуер / клавиш за заснемане:</strong> Видеото беше спряно, а екранът — затъмнен за защита на авторските права.
-        </div>
-      </div>
-
-      <p class="shield-modal-footnote">
-        Моля, уверете се, че нямате активни програми за запис (OBS, Snipping Tool, Game Bar и др.). Затворете тази бележка от <strong>хикса [✕]</strong> горе вдясно, за да продължите гледането.
-      </p>
-
-      <div class="shield-modal-actions">
-        <button type="button" class="btn btn-primary btn-lg shield-dismiss-btn" id="shieldAcceptBtn">
-          ✓ Разбрах, затвори бележката [✕]
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Vanilla JavaScript -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   {% block extra_js %}{% endblock %}

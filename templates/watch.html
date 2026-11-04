@@ -192,21 +192,7 @@
         allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
       ></iframe>
 
-      <!-- 3. ANTI-RECORDING BLACKOUT COVER OVER PLAYER -->
-      <div id="playerShieldCover" class="player-shield-cover" style="display: none;">
-        <div class="shield-cover-content">
-          <div class="shield-cover-icon">🛡️</div>
-          <h3>Защита на съдържанието</h3>
-          <p>Видеото е скрито поради засичане на запис на екрана или загуба на фокус.</p>
-        </div>
-      </div>
-
-      <!-- 4. FLOATING DYNAMIC WATERMARK -->
-      <div id="playerWatermark" class="player-watermark">
-        <span>CINEMAX • Защитено съдържание</span>
-      </div>
-
-      <!-- 5. UNAVAILABLE BOX -->
+      <!-- 3. UNAVAILABLE BOX -->
       <div class="player-unavailable" id="playerUnavailableBox" style="{% if (is_episode_locked and not is_admin) or active_embed_url %}display: none;{% endif %}">
         <div class="player-unavailable-icon">⚠️</div>
         <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Видеото не е налично</h3>

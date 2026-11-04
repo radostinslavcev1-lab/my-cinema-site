@@ -113,34 +113,107 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 3. WATCH PAGE: DYNAMIC EPISODE SWITCHER
+  // 3. WATCH PAGE: AD-SHIELD & PLAYER ENGINE
   // ========================================================
   const playerIframe = document.getElementById('playerIframe');
-  const episodeButtons = document.querySelectorAll('.episode-btn');
-  const seasonTabs = document.querySelectorAll('.season-tab-btn');
-  const currentEpisodeLabel = document.getElementById('currentEpisodeDisplay');
+  const toggleAdShieldBtn = document.getElementById('toggleAdShieldBtn');
+  const adShieldStatusText = document.getElementById('adShieldStatusText');
+  const adShieldToggleLabel = document.getElementById('adShieldToggleLabel');
+  const adShieldPulse = document.getElementById('adShieldPulse');
+  const reloadPlayerBtn = document.getElementById('reloadPlayerBtn');
 
-  // Season Tab switching
-  if (seasonTabs.length > 0) {
-    seasonTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const seasonNum = tab.dataset.season;
+  // Streamtape strictly disallows the 'sandbox' attribute and blocks playback.
+  const SANDBOX_SHIELD = 'allow-scripts allow-same-origin allow-forms allow-presentation';
 
-        seasonTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+  // Read saved state (default is false to ensure 100% compatibility across all streaming providers)
+  let isAdShieldActive = localStorage.getItem('cinema_adshield_active') === 'true';
 
-        episodeButtons.forEach(epBtn => {
-          if (epBtn.dataset.season === seasonNum) {
-            epBtn.style.display = 'flex';
-          } else {
-            epBtn.style.display = 'none';
-          }
-        });
-      });
+  function updateAdShieldUI(active) {
+    if (adShieldStatusText) {
+      adShieldStatusText.textContent = active ? 'Активен' : 'Изключен';
+      adShieldStatusText.style.color = active ? '#10b981' : '#ef4444';
+    }
+    if (adShieldToggleLabel) {
+      adShieldToggleLabel.textContent = active ? 'ВКЛ' : 'ИЗКЛ';
+    }
+    if (adShieldPulse) {
+      if (active) {
+        adShieldPulse.classList.remove('disabled');
+      } else {
+        adShieldPulse.classList.add('disabled');
+      }
+    }
+    if (toggleAdShieldBtn) {
+      if (active) {
+        toggleAdShieldBtn.classList.add('active');
+        toggleAdShieldBtn.classList.remove('disabled-state');
+      } else {
+        toggleAdShieldBtn.classList.remove('active');
+        toggleAdShieldBtn.classList.add('disabled-state');
+      }
+    }
+  }
+
+  function applyAdShieldState(active, reload = false) {
+    if (!playerIframe) return;
+
+    const currentSrc = playerIframe.src || '';
+    const disallowsSandbox = currentSrc && (
+      currentSrc.includes('drive.google.com') ||
+      currentSrc.includes('docs.google.com') ||
+      currentSrc.includes('streamtape.com') ||
+      currentSrc.includes('playhydrax.com') ||
+      currentSrc.includes('hydrax.net') ||
+      currentSrc.includes('abyss.to')
+    );
+
+    // Never add sandbox to Streamtape, Google Drive, or Hydrax/Abyss because they detect it and block playback
+    if (disallowsSandbox || !active) {
+      playerIframe.removeAttribute('sandbox');
+    } else {
+      playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
+    }
+
+    updateAdShieldUI(active);
+
+    if (reload) {
+      playerIframe.src = 'about:blank';
+      setTimeout(() => {
+        playerIframe.src = currentSrc;
+      }, 60);
+    }
+  }
+
+  // Initial apply
+  if (playerIframe) {
+    applyAdShieldState(isAdShieldActive, false);
+  }
+
+  // Toggle button click listener
+  if (toggleAdShieldBtn) {
+    toggleAdShieldBtn.addEventListener('click', () => {
+      isAdShieldActive = !isAdShieldActive;
+      localStorage.setItem('cinema_adshield_active', isAdShieldActive ? 'true' : 'false');
+      applyAdShieldState(isAdShieldActive, true);
     });
   }
 
-  // Live Countdown Timer for Coming Soon / Premiere
+  // Reload player button to refresh stream
+  if (reloadPlayerBtn && playerIframe) {
+    reloadPlayerBtn.addEventListener('click', () => {
+      let currentSrc = playerIframe.src;
+      if (!currentSrc || currentSrc === 'about:blank') return;
+      playerIframe.src = 'about:blank';
+      setTimeout(() => {
+        playerIframe.src = currentSrc;
+      }, 60);
+    });
+  }
+
+
+  // ========================================================
+  // 3.1 WATCH PAGE: COUNTDOWN TIMER & PREVIEW MODE
+  // ========================================================
   let activeCountdownInterval = null;
   function startCountdown(targetIso) {
     if (activeCountdownInterval) {
@@ -208,8 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
       isVisitorPreviewActive = !isVisitorPreviewActive;
       const playerComingSoon = document.getElementById('playerComingSoon');
       const extWatchBtn = document.getElementById('extWatchBtn');
-
       const ratioBox = document.querySelector('.player-aspect-ratio');
+
       if (isVisitorPreviewActive) {
         if (playerIframe) playerIframe.style.display = 'none';
         if (playerComingSoon) playerComingSoon.style.display = 'flex';
@@ -230,148 +303,187 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+
+  // ========================================================
+  // 3.2 WATCH PAGE: DYNAMIC EPISODE SWITCHER
+  // ========================================================
+  const episodeButtons = document.querySelectorAll('.episode-btn');
+  const seasonTabs = document.querySelectorAll('.season-tab-btn');
+  const currentEpisodeLabel = document.getElementById('currentEpisodeDisplay');
+
+  // Season Tab switching
+  if (seasonTabs.length > 0) {
+    seasonTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const seasonNum = tab.dataset.season;
+
+        seasonTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        episodeButtons.forEach(epBtn => {
+          if (epBtn.dataset.season === seasonNum) {
+            epBtn.style.display = 'flex';
+          } else {
+            epBtn.style.display = 'none';
+          }
+        });
+      });
+    });
+  }
+
   // Smooth episode playback without reload
-  if (episodeButtons.length > 0 && playerIframe) {
+  if (episodeButtons.length > 0) {
     episodeButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        try {
+          const isLocked = btn.dataset.isLocked === 'true';
+          const streamtapeId = btn.dataset.streamtapeId || '';
+          const playerComingSoon = document.getElementById('playerComingSoon');
+          const extWatchBtn = document.getElementById('extWatchBtn');
+          const playerUnavailableBox = document.getElementById('playerUnavailableBox');
+          const ratioBox = document.querySelector('.player-aspect-ratio');
 
-        const isLocked = btn.dataset.isLocked === 'true';
-        const streamtapeId = btn.dataset.streamtapeId;
-        const playerComingSoon = document.getElementById('playerComingSoon');
-        const extWatchBtn = document.getElementById('extWatchBtn');
-        const playerUnavailableBox = document.getElementById('playerUnavailableBox');
-
-        let fallbackUrl = '';
-        if (streamtapeId) {
-          if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
-            fallbackUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/preview`;
-          } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
-            fallbackUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
-          } else if (streamtapeId.startsWith('anon:')) {
-            fallbackUrl = `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}`;
-          } else {
-            fallbackUrl = `https://streamtape.com/e/${streamtapeId}/`;
-          }
-        }
-        const embedUrl = btn.dataset.embedUrl || fallbackUrl;
-        const serverName = btn.dataset.serverName || 'Cloud Stream';
-        const episodeId = btn.dataset.episodeId;
-        const episodeTitle = btn.dataset.episodeTitle;
-
-        // Check if current user is admin
-        const isAdmin = document.body.dataset.isAdmin === '1';
-
-        const ratioBox = document.querySelector('.player-aspect-ratio');
-        if (isLocked && (!isAdmin || isVisitorPreviewActive)) {
-          if (ratioBox) ratioBox.classList.add('has-coming-soon');
-          // Locked episode for visitors: Completely suppress player & show Coming Soon overlay
-          if (playerIframe) {
-            playerIframe.style.display = 'none';
-            playerIframe.src = '';
-          }
-          if (playerUnavailableBox) playerUnavailableBox.style.display = 'none';
-          if (playerComingSoon) {
-            playerComingSoon.style.display = 'flex';
-            const csTitle = document.getElementById('csTitle');
-            const csEpTitle = document.getElementById('csEpisodeTitle');
-            const csMessage = document.getElementById('csMessage');
-            const csDateWrap = document.getElementById('csDateWrapper');
-            const csDateText = document.getElementById('csDateText');
-
-            const relDate = btn.dataset.releaseDate;
-            const relIso = btn.dataset.releaseIso;
-
-            if (csTitle) {
-              csTitle.textContent = relDate ? 'Премиера скоро' : 'Очаквайте скоро';
-            }
-
-            if (csEpTitle && episodeTitle) csEpTitle.textContent = episodeTitle;
-            
-            const customMsg = btn.dataset.customMsg;
-            if (csMessage) {
-              if (customMsg) {
-                csMessage.textContent = customMsg;
-                csMessage.style.display = 'block';
-              } else if (relDate) {
-                csMessage.textContent = 'Този епизод все още не е достъпен. Премиерата ще се състои на посочената дата!';
-                csMessage.style.display = 'block';
-              } else {
-                csMessage.textContent = 'Този епизод все още не е достъпен. Очаквайте го скоро в CINEMAX!';
-                csMessage.style.display = 'block';
-              }
-            }
-
-            if (csDateWrap && csDateText) {
-              if (relDate) {
-                csDateText.textContent = relDate;
-                csDateWrap.style.display = 'flex';
-              } else {
-                csDateWrap.style.display = 'none';
-              }
-            }
-
-            startCountdown(relIso);
-          }
-
-          if (extWatchBtn) {
-            extWatchBtn.style.display = 'none';
-            extWatchBtn.href = '#';
-          }
-        } else {
-          if (ratioBox) ratioBox.classList.remove('has-coming-soon');
-          // Unlocked episode or Admin Preview mode
-          if (playerComingSoon) playerComingSoon.style.display = 'none';
-          if (playerIframe) {
-            playerIframe.style.display = 'block';
-            if (embedUrl) {
-              applyAdShieldState(isAdShieldActive, false);
-              playerIframe.src = embedUrl;
-            }
-          }
-
-          if (extWatchBtn) {
-            if (streamtapeId && (!isLocked || isAdmin)) {
-              let extUrl = '';
-              if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
-                extUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/view`;
-              } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
-                extUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
-              } else {
-                extUrl = `https://streamtape.com/v/${streamtapeId}`;
-              }
-              extWatchBtn.href = extUrl;
-              extWatchBtn.style.display = 'inline-flex';
+          let fallbackUrl = '';
+          if (streamtapeId) {
+            if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
+              fallbackUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/preview`;
+            } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
+              fallbackUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
+            } else if (streamtapeId.startsWith('anon:')) {
+              fallbackUrl = `https://anonmp4.help/embed/${streamtapeId.split(':')[1]}`;
             } else {
+              fallbackUrl = `https://streamtape.com/e/${streamtapeId}/`;
+            }
+          }
+          const embedUrl = btn.dataset.embedUrl || fallbackUrl;
+          const serverName = btn.dataset.serverName || 'Cloud Stream';
+          const episodeId = btn.dataset.episodeId;
+          const episodeTitle = btn.dataset.episodeTitle || '';
+          const isAdmin = document.body.dataset.isAdmin === '1';
+
+          if (isLocked && (!isAdmin || isVisitorPreviewActive)) {
+            // Locked episode for visitors: Show Coming Soon overlay
+            if (ratioBox) ratioBox.classList.add('has-coming-soon');
+            if (playerIframe) {
+              playerIframe.style.display = 'none';
+              playerIframe.src = '';
+            }
+            if (playerUnavailableBox) playerUnavailableBox.style.display = 'none';
+            if (playerComingSoon) {
+              playerComingSoon.style.display = 'flex';
+              const csTitle = document.getElementById('csTitle');
+              const csEpTitle = document.getElementById('csEpisodeTitle');
+              const csMessage = document.getElementById('csMessage');
+              const csDateWrap = document.getElementById('csDateWrapper');
+              const csDateText = document.getElementById('csDateText');
+
+              const relDate = btn.dataset.releaseDate;
+              const relIso = btn.dataset.releaseIso;
+
+              if (csTitle) csTitle.textContent = relDate ? 'Премиера скоро' : 'Очаквайте скоро';
+              if (csEpTitle && episodeTitle) csEpTitle.textContent = episodeTitle;
+
+              const customMsg = btn.dataset.customMsg;
+              if (csMessage) {
+                if (customMsg) {
+                  csMessage.textContent = customMsg;
+                  csMessage.style.display = 'block';
+                } else if (relDate) {
+                  csMessage.textContent = 'Този епизод все още не е достъпен. Премиерата ще се състои на посочената дата!';
+                  csMessage.style.display = 'block';
+                } else {
+                  csMessage.textContent = 'Този епизод все още не е достъпен. Очаквайте го скоро в CINEMAX!';
+                  csMessage.style.display = 'block';
+                }
+              }
+
+              if (csDateWrap && csDateText) {
+                if (relDate) {
+                  csDateText.textContent = relDate;
+                  csDateWrap.style.display = 'inline-flex';
+                } else {
+                  csDateWrap.style.display = 'none';
+                }
+              }
+
+              startCountdown(relIso);
+            }
+
+            if (extWatchBtn) {
               extWatchBtn.style.display = 'none';
               extWatchBtn.href = '#';
             }
+          } else {
+            // Unlocked episode
+            if (ratioBox) ratioBox.classList.remove('has-coming-soon');
+            if (playerComingSoon) playerComingSoon.style.display = 'none';
+
+            if (embedUrl) {
+              if (playerUnavailableBox) playerUnavailableBox.style.display = 'none';
+              if (playerIframe) {
+                playerIframe.style.display = 'block';
+                applyAdShieldState(isAdShieldActive, false);
+                playerIframe.src = embedUrl;
+              }
+            } else {
+              if (playerIframe) {
+                playerIframe.style.display = 'none';
+                playerIframe.src = '';
+              }
+              if (playerUnavailableBox) playerUnavailableBox.style.display = 'flex';
+            }
+
+            if (extWatchBtn) {
+              if (streamtapeId && (!isLocked || isAdmin)) {
+                let extUrl = '';
+                if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
+                  extUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/view`;
+                } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
+                  extUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
+                } else {
+                  extUrl = `https://streamtape.com/v/${streamtapeId}`;
+                }
+                extWatchBtn.href = extUrl;
+                extWatchBtn.style.display = 'inline-flex';
+              } else {
+                extWatchBtn.style.display = 'none';
+                extWatchBtn.href = '#';
+              }
+            }
           }
-        }
 
-        // Update active streaming server name if present
-        const activeServerEl = document.getElementById('activeServerName');
-        if (activeServerEl && serverName) {
-          activeServerEl.textContent = serverName;
-        }
+          // Update active streaming server name if present
+          const activeServerEl = document.getElementById('activeServerName');
+          if (activeServerEl && serverName) {
+            activeServerEl.textContent = serverName;
+          }
 
-        // Update active class
-        episodeButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+          // Update active button highlight
+          episodeButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
 
-        // Update text display
-        if (currentEpisodeLabel && episodeTitle) {
-          currentEpisodeLabel.textContent = episodeTitle;
-        }
+          // Update text display
+          if (currentEpisodeLabel && episodeTitle) {
+            currentEpisodeLabel.innerHTML = `Възпроизвежда се: <strong>${escapeHtml(episodeTitle)}</strong>`;
+          }
 
-        // Update URL state without reload
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('ep', episodeId);
-        window.history.pushState({}, '', newUrl);
+          // Update URL state without reload
+          if (episodeId) {
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('ep', episodeId);
+            window.history.pushState({}, '', newUrl);
+          }
 
-        // Scroll player into view smoothly if on mobile
-        if (window.innerWidth < 768) {
-          playerIframe.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Scroll player into view smoothly if on mobile
+          if (window.innerWidth < 768) {
+            const scrollTarget = ratioBox || playerIframe;
+            if (scrollTarget) {
+              scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
+        } catch (err) {
+          console.error('Error switching episode:', err);
         }
       });
     });
@@ -379,13 +491,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 3.1 WATCH PAGE: TOGGLE DESCRIPTION (SHOW MORE / SHOW LESS)
+  // 3.3 WATCH PAGE: TOGGLE DESCRIPTION (SHOW MORE / SHOW LESS)
   // ========================================================
   const toggleDescBtn = document.getElementById('toggleDescriptionBtn');
   const watchDescription = document.getElementById('watchDescription');
 
   if (toggleDescBtn && watchDescription) {
-    // If the text naturally fits without being clipped, hide the toggle button
     if (watchDescription.scrollHeight <= watchDescription.clientHeight + 4) {
       toggleDescBtn.style.display = 'none';
       watchDescription.classList.remove('clamped');
@@ -410,107 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-
-
-  // ========================================================
-  // 3.2 WATCH PAGE: AD-SHIELD & PLAYER ENGINE
-  // ========================================================
-  const toggleAdShieldBtn = document.getElementById('toggleAdShieldBtn');
-  const adShieldStatusText = document.getElementById('adShieldStatusText');
-  const adShieldToggleLabel = document.getElementById('adShieldToggleLabel');
-  const adShieldPulse = document.getElementById('adShieldPulse');
-  const reloadPlayerBtn = document.getElementById('reloadPlayerBtn');
-
-  // Streamtape strictly disallows the 'sandbox' attribute and blocks playback with:
-  // "Client blocked! Your browser or the embed you are viewing are doing nasty things!"
-  // When Streamtape is active, sandbox MUST be removed so the player works seamlessly.
-  const SANDBOX_SHIELD = 'allow-scripts allow-same-origin allow-forms allow-presentation';
-
-  // Read saved state (default is false to ensure 100% compatibility across all streaming providers)
-  let isAdShieldActive = localStorage.getItem('cinema_adshield_active') === 'true';
-
-  function updateAdShieldUI(active) {
-    if (adShieldStatusText) {
-      adShieldStatusText.textContent = active ? 'Активен' : 'Изключен';
-      adShieldStatusText.style.color = active ? '#10b981' : '#ef4444';
-    }
-    if (adShieldToggleLabel) {
-      adShieldToggleLabel.textContent = active ? 'ВКЛ' : 'ИЗКЛ';
-    }
-    if (adShieldPulse) {
-      if (active) {
-        adShieldPulse.classList.remove('disabled');
-      } else {
-        adShieldPulse.classList.add('disabled');
-      }
-    }
-    if (toggleAdShieldBtn) {
-      if (active) {
-        toggleAdShieldBtn.classList.add('active');
-        toggleAdShieldBtn.classList.remove('disabled-state');
-      } else {
-        toggleAdShieldBtn.classList.remove('active');
-        toggleAdShieldBtn.classList.add('disabled-state');
-      }
-    }
-  }
-
-  function applyAdShieldState(active, reload = false) {
-    if (!playerIframe) return;
-
-    const disallowsSandbox = playerIframe.src && (
-      playerIframe.src.includes('drive.google.com') ||
-      playerIframe.src.includes('docs.google.com') ||
-      playerIframe.src.includes('streamtape.com') ||
-      playerIframe.src.includes('playhydrax.com') ||
-      playerIframe.src.includes('hydrax.net') ||
-      playerIframe.src.includes('abyss.to')
-    );
-
-    // Never add sandbox to Streamtape or Hydrax/Abyss because they detect it and block playback
-    if (disallowsSandbox || !active) {
-      playerIframe.removeAttribute('sandbox');
-    } else {
-      playerIframe.setAttribute('sandbox', SANDBOX_SHIELD);
-    }
-
-    updateAdShieldUI(active);
-
-    if (reload) {
-      const currentSrc = playerIframe.src;
-      playerIframe.src = 'about:blank';
-      setTimeout(() => {
-        playerIframe.src = currentSrc;
-      }, 60);
-    }
-  }
-
-  // Initial apply
-  if (playerIframe) {
-    applyAdShieldState(isAdShieldActive, false);
-  }
-
-  // Toggle button click listener
-  if (toggleAdShieldBtn) {
-    toggleAdShieldBtn.addEventListener('click', () => {
-      isAdShieldActive = !isAdShieldActive;
-      localStorage.setItem('cinema_adshield_active', isAdShieldActive ? 'true' : 'false');
-      applyAdShieldState(isAdShieldActive, true);
-    });
-  }
-
-  // Reload player button to refresh stream
-  if (reloadPlayerBtn && playerIframe) {
-    reloadPlayerBtn.addEventListener('click', () => {
-      let currentSrc = playerIframe.src;
-      if (!currentSrc || currentSrc === 'about:blank') return;
-      playerIframe.src = 'about:blank';
-      setTimeout(() => {
-        playerIframe.src = currentSrc;
-      }, 60);
-    });
-  }
-
 
   // ========================================================
   // 4. ADMIN PANEL: METHOD TOGGLE (ABYSS/HYDRAX vs MANUAL vs STREAMTAPE API)
@@ -1066,308 +1076,6 @@ document.addEventListener('DOMContentLoaded', () => {
         prompt('Копирайте линка към видеото:', window.location.href);
       }
     });
-  }
-
-
-  // 8. ANTI-SCREENSHOT & ANTI-SCREEN-RECORDING SECURITY SHIELD (HBO MAX STYLE)
-  // ========================================================
-  const shieldModal = document.getElementById('screenShieldModal');
-  const shieldCloseXBtn = document.getElementById('shieldCloseXBtn');
-  const shieldAcceptBtn = document.getElementById('shieldAcceptBtn');
-
-  // Device detection: Mobile (iPhone, iPad, Android) vs Desktop
-  const isMobileDevice = /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth < 1024);
-
-  // Check if current page loaded as a result of a redirect or with pending warning notice
-  const urlParams = new URLSearchParams(window.location.search);
-  const hasPendingNotice = urlParams.get('blocked') === 'recording' || sessionStorage.getItem('pending_shield_notice') === '1';
-
-  if (hasPendingNotice && shieldModal) {
-    sessionStorage.removeItem('pending_shield_notice');
-    shieldModal.style.display = 'flex';
-    shieldModal.setAttribute('aria-hidden', 'false');
-  }
-
-  /**
-   * Instantly forces the video player into pitch black (DRM Black Screen),
-   * identical to HBO Max and Netflix hardware protection pipelines.
-   */
-  function applyInstantBlackout() {
-    // Only apply on desktop or explicit capture attempts
-    const iframe = document.getElementById('playerIframe');
-    const cover = document.getElementById('playerShieldCover');
-    const ratioBox = document.querySelector('.player-aspect-ratio');
-
-    if (cover) {
-      cover.style.display = 'flex';
-    }
-    if (ratioBox) {
-      ratioBox.classList.add('drm-blackout');
-    }
-    if (iframe) {
-      iframe.classList.add('drm-blackout');
-      if (iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank')) {
-        iframe.dataset.savedSrc = iframe.src;
-      }
-    }
-  }
-
-  /**
-   * Halts playback, blackens frame, increments violation tracking,
-   * and presents the user notice modal with close [X].
-   */
-  function triggerSecurityLockdown(reason, forceRedirect = false) {
-    applyInstantBlackout();
-
-    const iframe = document.getElementById('playerIframe');
-    if (iframe) {
-      iframe.src = 'about:blank';
-      iframe.style.display = 'none';
-    }
-
-    // Track violations in current session
-    let count = parseInt(sessionStorage.getItem('shield_violations') || '0', 10) + 1;
-    sessionStorage.setItem('shield_violations', count);
-
-    // If 3 consecutive violations occurred -> redirect to homepage and show the notice on the new page
-    if (count >= 3 || forceRedirect) {
-      sessionStorage.setItem('pending_shield_notice', '1');
-      window.location.href = '/?blocked=recording';
-      return;
-    }
-
-    // Display user warning modal with [X]
-    if (shieldModal) {
-      shieldModal.style.display = 'flex';
-      shieldModal.setAttribute('aria-hidden', 'false');
-    }
-  }
-
-  /**
-   * Closes the security notice, dismisses the blackout, and restores
-   * normal video playback seamlessly when user clicks [X].
-   */
-  function dismissSecurityLockdown() {
-    if (shieldModal) {
-      shieldModal.style.display = 'none';
-      shieldModal.setAttribute('aria-hidden', 'true');
-    }
-
-    sessionStorage.removeItem('pending_shield_notice');
-
-    // Clean URL query param if present without reloading
-    const curUrl = new URL(window.location.href);
-    if (curUrl.searchParams.has('blocked')) {
-      curUrl.searchParams.delete('blocked');
-      window.history.replaceState({}, '', curUrl.pathname + (curUrl.search ? curUrl.search : ''));
-    }
-
-    const cover = document.getElementById('playerShieldCover');
-    const ratioBox = document.querySelector('.player-aspect-ratio');
-    const iframe = document.getElementById('playerIframe');
-
-    if (cover) cover.style.display = 'none';
-    if (ratioBox) ratioBox.classList.remove('drm-blackout');
-    if (iframe) {
-      iframe.classList.remove('drm-blackout');
-      iframe.style.display = 'block';
-      if (iframe.dataset.savedSrc) {
-        iframe.src = iframe.dataset.savedSrc;
-      }
-    }
-  }
-
-  // Dismiss listeners (X button and Accept button)
-  if (shieldCloseXBtn) {
-    shieldCloseXBtn.addEventListener('click', dismissSecurityLockdown);
-  }
-  if (shieldAcceptBtn) {
-    shieldAcceptBtn.addEventListener('click', dismissSecurityLockdown);
-  }
-
-  // A. Continuous Background Scanner (every 350ms) - Detects window capture, OBS, Game Bar
-  let blurTickCount = 0;
-  setInterval(() => {
-    // CRITICAL FIX: Skip blur/focus scanner on iPhone, iPad, and Android phones!
-    // On iOS Safari, touching an iframe or scrolling collapses the bar and drops focus naturally.
-    if (isMobileDevice) return;
-
-    const iframe = document.getElementById('playerIframe');
-    const cover = document.getElementById('playerShieldCover');
-    const modal = document.getElementById('screenShieldModal');
-    const ratioBox = document.querySelector('.player-aspect-ratio');
-
-    if (!iframe) return;
-
-    // Check if player is active with a stream
-    const isPlaying = (iframe.dataset.savedSrc || (iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none'));
-    if (!isPlaying) return;
-
-    // On desktop: If user clicked inside the iframe (to play/pause/adjust volume),
-    // document.activeElement is the IFRAME! That is normal watching, NOT screen recording!
-    if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
-      blurTickCount = 0;
-      return;
-    }
-
-    // If window lost focus while watching on desktop (e.g. Snipping Tool, OBS window capture)
-    if (!document.hasFocus()) {
-      blurTickCount++;
-      // Instantly blackout video area so any recording captures 100% black
-      if (cover && cover.style.display !== 'flex') {
-        cover.style.display = 'flex';
-      }
-      if (ratioBox) ratioBox.classList.add('drm-blackout');
-      if (iframe) iframe.classList.add('drm-blackout');
-
-      // If focus remains lost for over 1.7s, pause stream and display the warning modal
-      if (blurTickCount === 5 && modal && modal.style.display === 'none') {
-        triggerSecurityLockdown('Засечена външна програма за заснемане на екрана или загуба на фокус.');
-      }
-    } else {
-      blurTickCount = 0;
-      // Normal focus: if modal is not open, remove blackout
-      if (modal && modal.style.display === 'none') {
-        if (cover && cover.style.display === 'flex') {
-          cover.style.display = 'none';
-        }
-        if (ratioBox) ratioBox.classList.remove('drm-blackout');
-        if (iframe) iframe.classList.remove('drm-blackout');
-      }
-    }
-  }, 350);
-
-  // B. Intercept browser screen recording API (getDisplayMedia)
-  if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
-    const origGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getDisplayMedia = function(...args) {
-      triggerSecurityLockdown('Браузърно разширение или програма опита да запише екрана чрез getDisplayMedia!');
-      return Promise.reject(new DOMException('Записът на екрана е забранен!', 'NotAllowedError'));
-    };
-  }
-
-  // C. Keyboard Screenshot & Snipping Tool interception with Microsecond Blackout
-  window.addEventListener('keydown', (e) => {
-    const key = e.key || '';
-    const code = e.code || '';
-    const isPrtScn = key === 'PrintScreen' || code === 'PrintScreen' || e.keyCode === 44;
-    const isWinSnipping = (e.metaKey || e.ctrlKey) && e.shiftKey && (key.toLowerCase() === 's' || code === 'KeyS');
-    const isMacCapture = e.metaKey && e.shiftKey && ['3', '4', '5'].includes(key);
-    const isPrint = (e.ctrlKey || e.metaKey) && (key.toLowerCase() === 'p' || code === 'KeyP');
-    const isSave = (e.ctrlKey || e.metaKey) && (key.toLowerCase() === 's' || code === 'KeyS') && !e.shiftKey;
-
-    if (isPrtScn || isWinSnipping || isMacCapture || isPrint) {
-      // 1. Instant blackout in current synchronous execution frame
-      applyInstantBlackout();
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Wipe OS clipboard so no captured frame is pasted
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText('⚠️ Записът и скрийншотването на съдържание от CINEMAX са абсолютно забранени!');
-        }
-      } catch (err) {}
-
-      triggerSecurityLockdown('Засечен клавишен опит за скрийншот или запис на екрана!');
-      return false;
-    }
-
-    if (isSave) {
-      e.preventDefault();
-      return false;
-    }
-  }, true);
-
-  // Catch PrintScreen keyup event
-  window.addEventListener('keyup', (e) => {
-    if (e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44) {
-      applyInstantBlackout();
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText('⚠️ Записът и скрийншотването на съдържание от CINEMAX са абсолютно забранени!');
-        }
-      } catch (err) {}
-      triggerSecurityLockdown('Засечен клавиш PrintScreen!');
-    }
-  }, true);
-
-  // D. Window blur on desktop only (skips mobile and clicking inside player)
-  window.addEventListener('blur', () => {
-    if (isMobileDevice) return;
-    if (document.activeElement && document.activeElement.tagName === 'IFRAME') return;
-    applyInstantBlackout();
-  });
-
-  window.addEventListener('focus', () => {
-    const modal = document.getElementById('screenShieldModal');
-    const cover = document.getElementById('playerShieldCover');
-    const ratioBox = document.querySelector('.player-aspect-ratio');
-    const iframe = document.getElementById('playerIframe');
-
-    // Only restore if warning modal is NOT active
-    if (modal && modal.style.display === 'none') {
-      if (cover) cover.style.display = 'none';
-      if (ratioBox) ratioBox.classList.remove('drm-blackout');
-      if (iframe) iframe.classList.remove('drm-blackout');
-    }
-  });
-
-  // E. Disable right-click context menu on player and posters
-  document.addEventListener('contextmenu', (e) => {
-    if (e.target.closest('.player-theater-wrapper') || e.target.closest('.watch-poster-side') || e.target.closest('.media-card') || e.target.tagName === 'IMG') {
-      e.preventDefault();
-      return false;
-    }
-  });
-
-  // F. Dynamic floating watermark (moves every 8 seconds)
-  const watermark = document.getElementById('playerWatermark');
-  if (watermark) {
-    const positions = [
-      { top: '16px', left: '20px', bottom: 'auto', right: 'auto' },
-      { top: '16px', right: '20px', bottom: 'auto', left: 'auto' },
-      { bottom: '16px', left: '20px', top: 'auto', right: 'auto' },
-      { bottom: '16px', right: '20px', top: 'auto', left: 'auto' }
-    ];
-    let posIdx = 0;
-    setInterval(() => {
-      posIdx = (posIdx + 1) % positions.length;
-      const p = positions[posIdx];
-      watermark.style.top = p.top;
-      watermark.style.bottom = p.bottom;
-      watermark.style.left = p.left;
-      watermark.style.right = p.right;
-    }, 8000);
-  }
-
-  // E. Disable right-click context menu on player and posters
-  document.addEventListener('contextmenu', (e) => {
-    if (e.target.closest('.player-theater-wrapper') || e.target.closest('.watch-poster-side') || e.target.closest('.media-card') || e.target.tagName === 'IMG') {
-      e.preventDefault();
-      return false;
-    }
-  });
-
-  // F. Dynamic floating watermark (moves every 8 seconds)
-  const watermark = document.getElementById('playerWatermark');
-  if (watermark) {
-    const positions = [
-      { top: '16px', left: '20px', bottom: 'auto', right: 'auto' },
-      { top: '16px', right: '20px', bottom: 'auto', left: 'auto' },
-      { bottom: '16px', left: '20px', top: 'auto', right: 'auto' },
-      { bottom: '16px', right: '20px', top: 'auto', left: 'auto' }
-    ];
-    let posIdx = 0;
-    setInterval(() => {
-      posIdx = (posIdx + 1) % positions.length;
-      const p = positions[posIdx];
-      watermark.style.top = p.top;
-      watermark.style.bottom = p.bottom;
-      watermark.style.left = p.left;
-      watermark.style.right = p.right;
-    }, 8000);
   }
 
 });

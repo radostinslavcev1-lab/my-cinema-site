@@ -202,9 +202,6 @@ def check_site_maintenance():
 @app.route('/')
 def index():
     """Main Catalog Page: Movie/Series Grid with Search, Filters and Sorting."""
-    if request.args.get('blocked') == 'recording':
-        flash('🚫 Достъпът до видеото беше прекратен поради засичане на софтуер за запис на екрана или скрийншот!', 'danger')
-
     search_query = request.args.get('q', '').strip()
     genre_filter = request.args.get('genre', '').strip()
     type_filter = request.args.get('type', '').strip().lower()  # 'movie' or 'series'
