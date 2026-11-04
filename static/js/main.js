@@ -1038,6 +1038,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
+  // ========================================================
+  // 7. COPY SHARE LINK BUTTON
+  // ========================================================
+  const shareBtn = document.getElementById('shareLinkBtn');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        const originalText = shareBtn.innerHTML;
+        shareBtn.innerHTML = '✓ Линкът е копиран!';
+        shareBtn.classList.remove('btn-secondary');
+        shareBtn.classList.add('btn-primary');
+
+        setTimeout(() => {
+          shareBtn.innerHTML = originalText;
+          shareBtn.classList.remove('btn-primary');
+          shareBtn.classList.add('btn-secondary');
+        }, 2500);
+      } catch (err) {
+        prompt('Копирайте линка към видеото:', window.location.href);
+      }
+    });
+  }
+
+
   // 8. ANTI-SCREENSHOT & ANTI-SCREEN-RECORDING SECURITY SHIELD (HBO MAX STYLE)
   // ========================================================
   const shieldModal = document.getElementById('screenShieldModal');
