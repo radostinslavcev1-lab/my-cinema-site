@@ -1044,11 +1044,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const shieldCloseXBtn = document.getElementById('shieldCloseXBtn');
   const shieldAcceptBtn = document.getElementById('shieldAcceptBtn');
 
+  // Device detection: Mobile (iPhone, iPad, Android) vs Desktop
+  const isMobileDevice = /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window && window.innerWidth < 1024);
+
+  // Check if current page loaded as a result of a redirect or with pending warning notice
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasPendingNotice = urlParams.get('blocked') === 'recording' || sessionStorage.getItem('pending_shield_notice') === '1';
+
+  if (hasPendingNotice && shieldModal) {
+    sessionStorage.removeItem('pending_shield_notice');
+    shieldModal.style.display = 'flex';
+    shieldModal.setAttribute('aria-hidden', 'false');
+  }
+
   /**
    * Instantly forces the video player into pitch black (DRM Black Screen),
    * identical to HBO Max and Netflix hardware protection pipelines.
    */
   function applyInstantBlackout() {
+    // Only apply on desktop or explicit capture attempts
     const iframe = document.getElementById('playerIframe');
     const cover = document.getElementById('playerShieldCover');
     const ratioBox = document.querySelector('.player-aspect-ratio');
@@ -1084,19 +1098,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let count = parseInt(sessionStorage.getItem('shield_violations') || '0', 10) + 1;
     sessionStorage.setItem('shield_violations', count);
 
-    // If 3 consecutive violations occurred -> redirect to homepage
+    // If 3 consecutive violations occurred -> redirect to homepage and show the notice on the new page
     if (count >= 3 || forceRedirect) {
-      if (shieldModal) {
-        shieldModal.style.display = 'flex';
-        shieldModal.setAttribute('aria-hidden', 'false');
-        const descEl = shieldModal.querySelector('.shield-modal-desc');
-        if (descEl) {
-          descEl.innerHTML = '<strong style="color: #f87171;">МНОГОКРАТНО НАРУШЕНИЕ:</strong> Засичане на софтуер за запис. Пренасочване към началния екран...';
-        }
-      }
-      setTimeout(() => {
-        window.location.href = '/?blocked=recording';
-      }, 1500);
+      sessionStorage.setItem('pending_shield_notice', '1');
+      window.location.href = '/?blocked=recording';
       return;
     }
 
@@ -1109,12 +1114,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /**
    * Closes the security notice, dismisses the blackout, and restores
-   * normal video playback seamlessly.
+   * normal video playback seamlessly when user clicks [X].
    */
   function dismissSecurityLockdown() {
     if (shieldModal) {
       shieldModal.style.display = 'none';
       shieldModal.setAttribute('aria-hidden', 'true');
+    }
+
+    sessionStorage.removeItem('pending_shield_notice');
+
+    // Clean URL query param if present without reloading
+    const curUrl = new URL(window.location.href);
+    if (curUrl.searchParams.has('blocked')) {
+      curUrl.searchParams.delete('blocked');
+      window.history.replaceState({}, '', curUrl.pathname + (curUrl.search ? curUrl.search : ''));
     }
 
     const cover = document.getElementById('playerShieldCover');
@@ -1140,9 +1154,13 @@ document.addEventListener('DOMContentLoaded', () => {
     shieldAcceptBtn.addEventListener('click', dismissSecurityLockdown);
   }
 
-  // A. Continuous Background Scanner (every 300ms) - Detects window capture, OBS, Game Bar
+  // A. Continuous Background Scanner (every 350ms) - Detects window capture, OBS, Game Bar
   let blurTickCount = 0;
   setInterval(() => {
+    // CRITICAL FIX: Skip blur/focus scanner on iPhone, iPad, and Android phones!
+    // On iOS Safari, touching an iframe or scrolling collapses the bar and drops focus naturally.
+    if (isMobileDevice) return;
+
     const iframe = document.getElementById('playerIframe');
     const cover = document.getElementById('playerShieldCover');
     const modal = document.getElementById('screenShieldModal');
@@ -1154,7 +1172,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const isPlaying = (iframe.dataset.savedSrc || (iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none'));
     if (!isPlaying) return;
 
-    // If window lost focus while watching (e.g. Snipping Tool overlay opened or external capture window active)
+    // On desktop: If user clicked inside the iframe (to play/pause/adjust volume),
+    // document.activeElement is the IFRAME! That is normal watching, NOT screen recording!
+    if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+      blurTickCount = 0;
+      return;
+    }
+
+    // If window lost focus while watching on desktop (e.g. Snipping Tool, OBS window capture)
     if (!document.hasFocus()) {
       blurTickCount++;
       // Instantly blackout video area so any recording captures 100% black
@@ -1164,8 +1189,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ratioBox) ratioBox.classList.add('drm-blackout');
       if (iframe) iframe.classList.add('drm-blackout');
 
-      // If focus remains lost for over 1.2s, pause stream and display the warning modal
-      if (blurTickCount === 4 && modal && modal.style.display === 'none') {
+      // If focus remains lost for over 1.7s, pause stream and display the warning modal
+      if (blurTickCount === 5 && modal && modal.style.display === 'none') {
         triggerSecurityLockdown('Засечена външна програма за заснемане на екрана или загуба на фокус.');
       }
     } else {
@@ -1179,14 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (iframe) iframe.classList.remove('drm-blackout');
       }
     }
-
-    // Monitor for developer inspection undocking
-    const widthDiff = window.outerWidth - window.innerWidth > 160;
-    const heightDiff = window.outerHeight - window.innerHeight > 160;
-    if (widthDiff || heightDiff) {
-      if (cover) cover.style.display = 'flex';
-    }
-  }, 300);
+  }, 350);
 
   // B. Intercept browser screen recording API (getDisplayMedia)
   if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
@@ -1244,8 +1262,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, true);
 
-  // D. Window blur & recording overlay detection
+  // D. Window blur on desktop only (skips mobile and clicking inside player)
   window.addEventListener('blur', () => {
+    if (isMobileDevice) return;
+    if (document.activeElement && document.activeElement.tagName === 'IFRAME') return;
     applyInstantBlackout();
   });
 
@@ -1262,6 +1282,34 @@ document.addEventListener('DOMContentLoaded', () => {
       if (iframe) iframe.classList.remove('drm-blackout');
     }
   });
+
+  // E. Disable right-click context menu on player and posters
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.player-theater-wrapper') || e.target.closest('.watch-poster-side') || e.target.closest('.media-card') || e.target.tagName === 'IMG') {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // F. Dynamic floating watermark (moves every 8 seconds)
+  const watermark = document.getElementById('playerWatermark');
+  if (watermark) {
+    const positions = [
+      { top: '16px', left: '20px', bottom: 'auto', right: 'auto' },
+      { top: '16px', right: '20px', bottom: 'auto', left: 'auto' },
+      { bottom: '16px', left: '20px', top: 'auto', right: 'auto' },
+      { bottom: '16px', right: '20px', top: 'auto', left: 'auto' }
+    ];
+    let posIdx = 0;
+    setInterval(() => {
+      posIdx = (posIdx + 1) % positions.length;
+      const p = positions[posIdx];
+      watermark.style.top = p.top;
+      watermark.style.bottom = p.bottom;
+      watermark.style.left = p.left;
+      watermark.style.right = p.right;
+    }, 8000);
+  }
 
   // E. Disable right-click context menu on player and posters
   document.addEventListener('contextmenu', (e) => {

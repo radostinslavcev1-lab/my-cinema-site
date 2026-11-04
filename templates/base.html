@@ -190,7 +190,7 @@
   </nav>
 
   <!-- Anti-Screenshot & Anti-Screen-Recording Security Shield Modal (HBO Max Style DRM) -->
-  <div id="screenShieldModal" class="shield-modal-backdrop" aria-hidden="true" style="display: none;">
+  <div id="screenShieldModal" class="shield-modal-backdrop" aria-hidden="{{ 'false' if request.args.get('blocked') == 'recording' else 'true' }}" style="{% if request.args.get('blocked') == 'recording' %}display: flex;{% else %}display: none;{% endif %}">
     <div class="shield-modal-dialog">
       <!-- Close button (Хикс X) -->
       <button type="button" class="shield-close-btn" id="shieldCloseXBtn" title="Затвори бележката" aria-label="Затвори">✕</button>
