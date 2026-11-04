@@ -19,6 +19,18 @@
 </head>
 <body>
 
+  {% if is_admin and site_is_locked %}
+    <!-- Admin Maintenance Sticky Alert -->
+    <div style="background: linear-gradient(90deg, #dc2626, #991b1b); color: #ffffff; padding: 10px 16px; text-align: center; font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 9999;">
+      <span>🔒 <strong>ВНИМАНИЕ:</strong> Сайтът е заключен за обикновени посетители (Режим на профилактика).</span>
+      <form method="POST" action="{{ url_for('admin_toggle_site_lock') }}" style="display: inline; margin: 0;">
+        <button type="submit" class="btn btn-sm" style="background: #ffffff; color: #dc2626; font-weight: 700; padding: 3px 12px; font-size: 0.78rem; border: none; border-radius: 4px; cursor: pointer;">
+          🔓 Отключи сайта сега
+        </button>
+      </form>
+    </div>
+  {% endif %}
+
   <!-- Top Navigation Bar -->
   <header class="navbar">
     <div class="container">
@@ -64,6 +76,11 @@
       <!-- User / Admin Actions -->
       <div class="nav-actions">
         {% if is_admin %}
+          {% if site_is_locked %}
+            <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 8px; font-size: 0.75rem;" title="Сайтът е заключен за обикновени посетители">
+              🔒 Заключен
+            </span>
+          {% endif %}
           <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-sm">
             ⚙️ Админ панел
           </a>

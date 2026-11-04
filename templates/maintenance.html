@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="theme-color" content="#0a0b0e">
+  <title>Сайтът временно е недостъпен - CINEMAX</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body {
+      background-color: #0a0b0e;
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(229, 9, 20, 0.12) 0%, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      margin: 0;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .maintenance-wrapper {
+      max-width: 580px;
+      width: 100%;
+      background: rgba(24, 27, 38, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 48px 36px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 40px rgba(229, 9, 20, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .maintenance-wrapper::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #e50914, #f59e0b, #8b5cf6, #e50914);
+      background-size: 300% 100%;
+      animation: gradientShift 6s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .lock-icon-wrap {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 24px;
+      background: rgba(229, 9, 20, 0.12);
+      border: 2px solid rgba(229, 9, 20, 0.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      position: relative;
+      box-shadow: 0 0 30px rgba(229, 9, 20, 0.25);
+      animation: pulseGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(229, 9, 20, 0.25);
+      }
+      50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 50px rgba(229, 9, 20, 0.45);
+      }
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      color: #9aa0a6;
+      text-transform: uppercase;
+    }
+
+    .brand-title span {
+      color: #e50914;
+    }
+
+    .maintenance-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 16px;
+      color: #ffffff;
+    }
+
+    .maintenance-message {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: #9aa0a6;
+      margin-bottom: 32px;
+      padding: 16px 20px;
+      background: rgba(16, 18, 26, 0.7);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .admin-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      text-decoration: none;
+      font-size: 0.92rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+    }
+
+    .admin-link-btn:hover {
+      background: #e50914;
+      border-color: #e50914;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(229, 9, 20, 0.35);
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="maintenance-wrapper">
+    <div class="brand-title">
+      CINE<span>MAX</span>
+    </div>
+
+    <div class="lock-icon-wrap">
+      🔒
+    </div>
+
+    <h1 class="maintenance-title">
+      Сайтът временно е недостъпен
+    </h1>
+
+    <div class="maintenance-message">
+      {{ message if message else 'В момента се извършва техническа профилактика и обновяване на каталога. Моля, заповядайте отново по-късно!' }}
+    </div>
+
+    <div>
+      <a href="{{ url_for('login') }}" class="admin-link-btn">
+        🔐 Вход за администратор
+      </a>
+    </div>
+
+    <div class="footer-note">
+      CINEMAX &bull; Всички права запазени
+    </div>
+  </div>
+
+</body>
+</html>

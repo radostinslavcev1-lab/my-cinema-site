@@ -2314,3 +2314,166 @@ textarea.form-control {
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================================================
+   COMING SOON / PREMIERE OVERLAY FOR LOCKED EPISODES
+   ======================================================== */
+.player-coming-soon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(139, 92, 246, 0.18) 0%, #0a0b0e 75%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  z-index: 5;
+  text-align: center;
+  overflow-y: auto;
+}
+
+.coming-soon-card {
+  max-width: 540px;
+  width: 100%;
+  background: rgba(24, 27, 38, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 36px 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 35px rgba(139, 92, 246, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.coming-soon-icon-wrap {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 16px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 25px rgba(139, 92, 246, 0.35);
+  animation: pulseGlowPurp 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlowPurp {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(139, 92, 246, 0.35); }
+  50% { transform: scale(1.05); box-shadow: 0 0 45px rgba(139, 92, 246, 0.6); }
+}
+
+.coming-soon-icon {
+  font-size: 32px;
+}
+
+.coming-soon-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  background: rgba(229, 9, 20, 0.2);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  color: #ff4d58;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  border-radius: 9999px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.coming-soon-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.coming-soon-ep {
+  font-size: 1rem;
+  color: var(--accent-purple);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.coming-soon-custom-msg {
+  font-size: 1rem;
+  color: #e2e8f0;
+  background: rgba(16, 18, 26, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px 18px;
+  margin-bottom: 16px;
+  max-width: 100%;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.coming-soon-date-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.coming-soon-date-box .cs-label {
+  color: var(--text-muted);
+}
+
+.coming-soon-date-box .cs-val {
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.cs-countdown-timer {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.cd-box {
+  background: rgba(10, 11, 14, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.cd-box .cd-num {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: monospace, monospace;
+}
+
+.cd-box .cd-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.episode-btn.locked-ep-btn {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.episode-btn.locked-ep-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+

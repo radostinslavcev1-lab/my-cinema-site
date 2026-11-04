@@ -194,7 +194,8 @@ class MediaItem(db.Model):
 
 class Episode(db.Model):
     """
-    Represents an episode of a TV series with its own Streamtape Video ID.
+    Represents an episode of a TV series with its own Streamtape/Hydrax/GDrive Video ID.
+    Supports scheduled publishing, custom locking, and coming soon announcements.
     """
     __tablename__ = 'episodes'
 
@@ -204,11 +205,40 @@ class Episode(db.Model):
     episode_num = db.Column(db.Integer, nullable=False, default=1)
     title = db.Column(db.String(255), nullable=True)
     streamtape_id = db.Column(db.String(100), nullable=False)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    release_date = db.Column(db.DateTime, nullable=True, index=True)
+    custom_message = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     @property
+    def is_currently_locked(self):
+        """
+        Returns True if episode is locked and release_date is either unset or in the future.
+        If release_date has arrived/passed, it automatically unlocks for visitors.
+        """
+        if not self.is_locked:
+            return False
+        if self.release_date and datetime.utcnow() >= self.release_date:
+            return False
+        return True
+
+    @property
+    def formatted_release_date(self):
+        """Returns release date formatted in Bulgarian (DD.MM.YYYY г., HH:MM ч.)."""
+        if not self.release_date:
+            return None
+        return self.release_date.strftime("%d.%m.%Y г., %H:%M ч.")
+
+    @property
+    def release_date_iso(self):
+        """Returns ISO string for JavaScript countdown timer."""
+        if not self.release_date:
+            return None
+        return self.release_date.strftime("%Y-%m-%dT%H:%M:%S")
+
+    @property
     def embed_url(self):
-        """Returns the iframe embed URL for episode (Streamtape or AnonMP4)."""
+        """Returns the iframe embed URL for episode."""
         return resolve_embed_url(self.streamtape_id)
 
     @property
@@ -236,8 +266,47 @@ class Episode(db.Model):
             'display_title': self.display_title,
             'streamtape_id': self.streamtape_id,
             'embed_url': self.embed_url,
+            'is_locked': self.is_locked,
+            'is_currently_locked': self.is_currently_locked,
+            'release_date': self.formatted_release_date,
+            'release_date_iso': self.release_date_iso,
+            'custom_message': self.custom_message,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
         }
 
     def __repr__(self):
         return f"<Episode {self.id}: Media={self.media_id} {self.display_code}>"
+
+
+class SiteSetting(db.Model):
+    """
+    Stores key-value system settings such as maintenance lock and custom alerts.
+    """
+    __tablename__ = 'site_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    value = db.Column(db.Text, nullable=True)
+
+    @classmethod
+    def get(cls, key: str, default: str = None) -> str:
+        try:
+            item = cls.query.filter_by(key=key).first()
+            return item.value if item and item.value is not None else default
+        except Exception:
+            return default
+
+    @classmethod
+    def set(cls, key: str, value: str) -> None:
+        try:
+            item = cls.query.filter_by(key=key).first()
+            if not item:
+                item = cls(key=key, value=value)
+                db.session.add(item)
+            else:
+                item.value = value
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+

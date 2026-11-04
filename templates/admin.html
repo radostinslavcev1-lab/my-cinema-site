@@ -15,7 +15,18 @@
         Управление на каталога, ръчно добавяне и автоматично качване към Streamtape API.
       </p>
     </div>
-    <div style="display: flex; gap: 12px;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <form method="POST" action="{{ url_for('admin_toggle_site_lock') }}" style="margin: 0;">
+        {% if site_is_locked %}
+          <button type="submit" class="btn btn-danger" style="display: flex; align-items: center; gap: 6px; box-shadow: 0 0 16px rgba(229, 9, 20, 0.5);">
+            🔒 Сайтът е заключен (Отключи)
+          </button>
+        {% else %}
+          <button type="submit" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px; border-color: rgba(245, 158, 11, 0.4); color: var(--accent-gold);">
+            🔓 Заключи сайта (Профилактика)
+          </button>
+        {% endif %}
+      </form>
       <a href="{{ url_for('index') }}" class="btn btn-secondary">
         🌐 Преглед на сайта
       </a>
@@ -92,6 +103,35 @@
             {{ abyss_status.message }}
           {% endif %}
         </small>
+      </div>
+    </div>
+
+    <!-- Site Lock / Maintenance Mode Card -->
+    <div class="stat-card" style="position: relative; {% if site_is_locked %}border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08);{% endif %}">
+      <div class="stat-icon {% if site_is_locked %}red{% else %}green{% endif %}">
+        {% if site_is_locked %}🔒{% else %}🔓{% endif %}
+      </div>
+      <div class="stat-data" style="flex: 1;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <h4>Заключване на сайта</h4>
+          <button type="button" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 0.72rem;" onclick="document.getElementById('siteLockSettingsModal').classList.add('active')">
+            ⚙️ Текст
+          </button>
+        </div>
+        <div style="font-size: 0.95rem; font-weight: 700; color: {{ 'var(--accent-red)' if site_is_locked else 'var(--accent-green)' }};">
+          {{ 'Сайтът е заключен' if site_is_locked else 'Сайтът е свободен' }}
+        </div>
+        <form method="POST" action="{{ url_for('admin_toggle_site_lock') }}" style="margin-top: 6px;">
+          {% if site_is_locked %}
+            <button type="submit" class="btn btn-sm btn-primary" style="padding: 3px 10px; font-size: 0.75rem; width: 100%;">
+              🔓 Отключи за посетители
+            </button>
+          {% else %}
+            <button type="submit" class="btn btn-sm btn-secondary" style="padding: 3px 10px; font-size: 0.75rem; width: 100%; color: var(--accent-gold);">
+              🔒 Заключи сайта
+            </button>
+          {% endif %}
+        </form>
       </div>
     </div>
   </div>
@@ -583,6 +623,41 @@
         </button>
         <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #7c3aed, #a855f7); border: none;">
           💾 Запази и провери квотата
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Site Lock Settings Modal -->
+<div id="siteLockSettingsModal" class="modal-backdrop">
+  <div class="modal-dialog">
+    <h3 class="modal-title">🔒 Настройки за заключване на сайта</h3>
+    <p class="modal-body" style="font-size: 0.9rem; margin-bottom: 16px;">
+      Когато сайтът е заключен, всеки посетител без администраторски профил вижда екран за профилактика с текста по-долу.
+    </p>
+
+    <form method="POST" action="{{ url_for('admin_update_site_lock_message') }}">
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="maintenance_message">Съобщение за недостъпност *</label>
+        <textarea 
+          id="maintenance_message" 
+          name="maintenance_message" 
+          class="form-control" 
+          rows="4" 
+          required
+        >{{ maintenance_message }}</textarea>
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+          💡 Този текст се изписва на цял екран на всеки посетител, когато сайтът е в режим на профилактика.
+        </small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('siteLockSettingsModal').classList.remove('active')">
+          Отказ
+        </button>
+        <button type="submit" class="btn btn-primary">
+          💾 Запази съобщението
         </button>
       </div>
     </form>

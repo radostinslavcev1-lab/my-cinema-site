@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 from database import db
-from models import MediaItem, Episode
+from models import MediaItem, Episode, SiteSetting
 from streamtape import (
     extract_streamtape_id, upload_file_to_streamtape,
     check_api_status, StreamtapeAPIError
@@ -72,6 +72,25 @@ TEMP_DIR = os.path.join(tempfile.gettempdir(), 'cinema_streamtape_uploads')
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 
+def is_site_locked() -> bool:
+    """Returns True if the site is locked in maintenance mode."""
+    try:
+        return SiteSetting.get('site_locked', '0') == '1'
+    except Exception:
+        return False
+
+
+def get_maintenance_message() -> str:
+    """Returns the custom message displayed when the site is locked."""
+    try:
+        return SiteSetting.get(
+            'maintenance_message',
+            'Сайтът временно е недостъпен поради техническо обновяване. Моля, заповядайте отново по-късно.'
+        )
+    except Exception:
+        return 'Сайтът временно е недостъпен.'
+
+
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -123,8 +142,28 @@ def inject_global_data():
         'admin_user': session.get('admin_user', ''),
         'current_year': datetime.now().year,
         'all_genres': genres_list,
-        'streamtape_configured': bool(STREAMTAPE_LOGIN and STREAMTAPE_KEY)
+        'streamtape_configured': bool(STREAMTAPE_LOGIN and STREAMTAPE_KEY),
+        'site_is_locked': is_site_locked(),
+        'maintenance_message': get_maintenance_message()
     }
+
+
+@app.before_request
+def check_site_maintenance():
+    """Blocks unauthenticated visitors with a 503 maintenance page when site is locked."""
+    ensure_db_ready()
+
+    # Always permit static assets, login and logout endpoints
+    if request.path.startswith('/static/') or request.endpoint in ('static', 'login', 'logout'):
+        return None
+
+    # Logged-in admin has full access everywhere
+    if session.get('is_admin'):
+        return None
+
+    if is_site_locked():
+        msg = get_maintenance_message()
+        return render_template('maintenance.html', message=msg), 503
 
 
 # ==========================================
@@ -205,6 +244,11 @@ def watch(id):
 
     current_episode = None
     active_streamtape_id = None
+    active_embed_url = None
+    active_server_name = None
+    is_episode_locked = False
+
+    is_admin = bool(session.get('is_admin'))
 
     if item.media_type == 'series':
         ep_id = request.args.get('ep', type=int)
@@ -216,9 +260,15 @@ def watch(id):
             current_episode = item.episodes[0]
 
         if current_episode:
-            active_streamtape_id = current_episode.streamtape_id
-            active_embed_url = current_episode.embed_url
+            is_episode_locked = current_episode.is_currently_locked
             active_server_name = current_episode.server_name
+            if is_episode_locked and not is_admin:
+                # Do NOT expose stream URL to normal visitors for locked episodes
+                active_streamtape_id = None
+                active_embed_url = None
+            else:
+                active_streamtape_id = current_episode.streamtape_id
+                active_embed_url = current_episode.embed_url
         else:
             active_streamtape_id = item.streamtape_id
             active_embed_url = item.embed_url
@@ -254,6 +304,7 @@ def watch(id):
         active_streamtape_id=active_streamtape_id,
         active_embed_url=active_embed_url,
         active_server_name=active_server_name,
+        is_episode_locked=is_episode_locked,
         similar_items=similar_items
     )
 
@@ -819,19 +870,106 @@ def admin_add_episode(media_id):
         flash('Необходим е валиден Google Drive, Abyss / Hydrax или Streamtape ID / линк за епизода!', 'danger')
         return redirect(url_for('admin_manage_episodes', media_id=media.id))
 
+    is_locked = bool(request.form.get('is_locked'))
+    release_date_str = request.form.get('release_date', '').strip()
+    release_date = None
+    if release_date_str:
+        try:
+            release_date = datetime.strptime(release_date_str, '%Y-%m-%dT%H:%M')
+        except Exception:
+            try:
+                release_date = datetime.fromisoformat(release_date_str)
+            except Exception:
+                release_date = None
+
+    custom_message = request.form.get('custom_message', '').strip() or None
+
     new_ep = Episode(
         media_id=media.id,
         season_num=season_num,
         episode_num=episode_num,
         title=episode_title or f"Епизод {episode_num}",
-        streamtape_id=streamtape_id
+        streamtape_id=streamtape_id,
+        is_locked=is_locked,
+        release_date=release_date,
+        custom_message=custom_message
     )
 
     db.session.add(new_ep)
     db.session.commit()
 
-    flash(f"Епизод S{season_num:02d}E{episode_num:02d} беше добавен успешно!", 'success')
+    lock_note = " (🔒 Заключен за премиера)" if is_locked else ""
+    flash(f"Епизод S{season_num:02d}E{episode_num:02d} беше добавен успешно!{lock_note}", 'success')
     return redirect(url_for('admin_manage_episodes', media_id=media.id))
+
+
+@app.route('/admin/episode/toggle-lock/<int:id>', methods=['POST'])
+@login_required
+def admin_toggle_episode_lock(id):
+    """Toggles locked status of an episode directly."""
+    ep = Episode.query.get_or_404(id)
+    ep.is_locked = not ep.is_locked
+    db.session.commit()
+    if ep.is_locked:
+        flash(f"🔒 Епизод {ep.display_code} беше заключен (Очаквайте скоро).", 'warning')
+    else:
+        flash(f"🔓 Епизод {ep.display_code} беше отключен успешно за всички посетители.", 'success')
+    return redirect(request.referrer or url_for('admin_manage_episodes', media_id=ep.media_id))
+
+
+@app.route('/admin/episode/update-lock/<int:id>', methods=['POST'])
+@login_required
+def admin_update_episode_lock(id):
+    """Updates release date and custom message on an episode."""
+    ep = Episode.query.get_or_404(id)
+    ep.is_locked = bool(request.form.get('is_locked'))
+
+    release_date_str = request.form.get('release_date', '').strip()
+    if release_date_str:
+        try:
+            ep.release_date = datetime.strptime(release_date_str, '%Y-%m-%dT%H:%M')
+        except Exception:
+            try:
+                ep.release_date = datetime.fromisoformat(release_date_str)
+            except Exception:
+                pass
+    else:
+        ep.release_date = None
+
+    ep.custom_message = request.form.get('custom_message', '').strip() or None
+    db.session.commit()
+    flash(f"Настройките за премиера на епизод {ep.display_code} бяха обновени успешно.", 'success')
+    return redirect(request.referrer or url_for('admin_manage_episodes', media_id=ep.media_id))
+
+
+@app.route('/admin/site-lock/toggle', methods=['POST'])
+@login_required
+def admin_toggle_site_lock():
+    """Toggles maintenance mode locking the entire site for visitors."""
+    currently_locked = is_site_locked()
+    new_locked = not currently_locked
+    SiteSetting.set('site_locked', '1' if new_locked else '0')
+
+    custom_msg = request.form.get('maintenance_message')
+    if custom_msg is not None and custom_msg.strip():
+        SiteSetting.set('maintenance_message', custom_msg.strip())
+
+    if new_locked:
+        flash('🔒 Сайтът е успешно заключен! Обикновените посетители виждат екран за профилактика.', 'warning')
+    else:
+        flash('🔓 Сайтът беше отключен успешно! Вече е свободен и видим за всички посетители.', 'success')
+    return redirect(request.referrer or url_for('admin_dashboard'))
+
+
+@app.route('/admin/site-lock/message', methods=['POST'])
+@login_required
+def admin_update_site_lock_message():
+    """Updates custom maintenance text for the site lock."""
+    msg = request.form.get('maintenance_message', '').strip()
+    if msg:
+        SiteSetting.set('maintenance_message', msg)
+        flash('Съобщението за профилактика беше обновено успешно.', 'success')
+    return redirect(request.referrer or url_for('admin_dashboard'))
 
 
 @app.route('/admin/episode/delete/<int:id>', methods=['POST'])
@@ -951,7 +1089,6 @@ def create_tables():
 create_tables()
 
 
-@app.before_request
 def ensure_db_ready():
     """Ensure database connection is ready on first request and new columns exist."""
     if not getattr(app, '_db_initialized', False):
@@ -965,6 +1102,21 @@ def ensure_db_ready():
                     pass
                 try:
                     conn.execute(db.text("ALTER TABLE media_items ADD COLUMN is_featured BOOLEAN DEFAULT FALSE"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN release_date TIMESTAMP NULL"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN custom_message VARCHAR(255) NULL"))
                     conn.commit()
                 except Exception:
                     pass

@@ -140,13 +140,105 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Live Countdown Timer for Coming Soon / Premiere
+  let activeCountdownInterval = null;
+  function startCountdown(targetIso) {
+    if (activeCountdownInterval) {
+      clearInterval(activeCountdownInterval);
+      activeCountdownInterval = null;
+    }
+    const timerWrap = document.getElementById('csCountdownWrapper');
+    if (!targetIso) {
+      if (timerWrap) timerWrap.style.display = 'none';
+      return;
+    }
+    const targetTime = new Date(targetIso).getTime();
+    if (isNaN(targetTime)) {
+      if (timerWrap) timerWrap.style.display = 'none';
+      return;
+    }
+
+    if (timerWrap) timerWrap.style.display = 'block';
+
+    function tick() {
+      const now = Date.now();
+      const diff = targetTime - now;
+      const daysEl = document.getElementById('cdDays');
+      const hoursEl = document.getElementById('cdHours');
+      const minEl = document.getElementById('cdMinutes');
+      const secEl = document.getElementById('cdSeconds');
+
+      if (diff <= 0) {
+        if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+        if (daysEl) daysEl.textContent = '00';
+        if (hoursEl) hoursEl.textContent = '00';
+        if (minEl) minEl.textContent = '00';
+        if (secEl) secEl.textContent = '00';
+        const csTitle = document.getElementById('csTitle');
+        if (csTitle) csTitle.textContent = 'Премиерата започва!';
+        return;
+      }
+
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (daysEl) daysEl.textContent = String(d).padStart(2, '0');
+      if (hoursEl) hoursEl.textContent = String(h).padStart(2, '0');
+      if (minEl) minEl.textContent = String(m).padStart(2, '0');
+      if (secEl) secEl.textContent = String(s).padStart(2, '0');
+    }
+
+    tick();
+    activeCountdownInterval = setInterval(tick, 1000);
+  }
+
+  // Initialize countdown on page load if element exists
+  const initialCountdownEl = document.getElementById('csCountdown');
+  if (initialCountdownEl && initialCountdownEl.dataset.target) {
+    startCountdown(initialCountdownEl.dataset.target);
+  }
+
+  // Admin visitor preview toggle button
+  const toggleVisitorPreviewBtn = document.getElementById('toggleVisitorPreviewBtn');
+  let isVisitorPreviewActive = false;
+  if (toggleVisitorPreviewBtn) {
+    toggleVisitorPreviewBtn.addEventListener('click', () => {
+      isVisitorPreviewActive = !isVisitorPreviewActive;
+      const playerComingSoon = document.getElementById('playerComingSoon');
+      const extWatchBtn = document.getElementById('extWatchBtn');
+
+      if (isVisitorPreviewActive) {
+        if (playerIframe) playerIframe.style.display = 'none';
+        if (playerComingSoon) playerComingSoon.style.display = 'flex';
+        if (extWatchBtn) extWatchBtn.style.display = 'none';
+        toggleVisitorPreviewBtn.textContent = '👁️ Обратно към админ плейър';
+        toggleVisitorPreviewBtn.classList.add('btn-primary');
+        toggleVisitorPreviewBtn.classList.remove('btn-secondary');
+      } else {
+        if (playerIframe) playerIframe.style.display = 'block';
+        if (playerComingSoon) playerComingSoon.style.display = 'none';
+        if (extWatchBtn) extWatchBtn.style.display = 'inline-flex';
+        toggleVisitorPreviewBtn.textContent = '👁️ Изглед за посетители';
+        toggleVisitorPreviewBtn.classList.remove('btn-primary');
+        toggleVisitorPreviewBtn.classList.add('btn-secondary');
+      }
+    });
+  }
+
   // Smooth episode playback without reload
   if (episodeButtons.length > 0 && playerIframe) {
     episodeButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
 
+        const isLocked = btn.dataset.isLocked === 'true';
         const streamtapeId = btn.dataset.streamtapeId;
+        const playerComingSoon = document.getElementById('playerComingSoon');
+        const extWatchBtn = document.getElementById('extWatchBtn');
+        const playerUnavailableBox = document.getElementById('playerUnavailableBox');
+
         let fallbackUrl = '';
         if (streamtapeId) {
           if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
@@ -164,13 +256,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const episodeId = btn.dataset.episodeId;
         const episodeTitle = btn.dataset.episodeTitle;
 
-        if (!embedUrl && !streamtapeId) return;
+        // Check if admin is currently previewing normal player
+        const hasAdminBanner = document.querySelector('.admin-locked-notice-banner') !== null;
 
-        // Ensure Ad-Shield sandbox is maintained on episode switch
-        applyAdShieldState(isAdShieldActive, false);
+        if (isLocked && (!hasAdminBanner || isVisitorPreviewActive)) {
+          // Locked episode for visitors: Show Coming Soon overlay
+          if (playerIframe) {
+            playerIframe.style.display = 'none';
+            playerIframe.src = 'about:blank';
+          }
+          if (playerUnavailableBox) playerUnavailableBox.style.display = 'none';
+          if (playerComingSoon) {
+            playerComingSoon.style.display = 'flex';
+            const csEpTitle = document.getElementById('csEpisodeTitle');
+            const csMessage = document.getElementById('csMessage');
+            const csDateWrap = document.getElementById('csDateWrapper');
+            const csDateText = document.getElementById('csDateText');
 
-        // Update iframe source
-        playerIframe.src = embedUrl;
+            if (csEpTitle && episodeTitle) csEpTitle.textContent = episodeTitle;
+            
+            const customMsg = btn.dataset.customMsg;
+            if (csMessage) {
+              if (customMsg) {
+                csMessage.textContent = customMsg;
+                csMessage.style.display = 'block';
+              } else {
+                csMessage.style.display = 'none';
+              }
+            }
+
+            const relDate = btn.dataset.releaseDate;
+            const relIso = btn.dataset.releaseIso;
+            if (csDateWrap && csDateText) {
+              if (relDate) {
+                csDateText.textContent = relDate;
+                csDateWrap.style.display = 'flex';
+              } else {
+                csDateWrap.style.display = 'none';
+              }
+            }
+
+            startCountdown(relIso);
+          }
+
+          if (extWatchBtn) extWatchBtn.style.display = 'none';
+        } else {
+          // Unlocked episode or Admin Preview mode
+          if (playerComingSoon) playerComingSoon.style.display = 'none';
+          if (playerIframe) {
+            playerIframe.style.display = 'block';
+            if (embedUrl) {
+              applyAdShieldState(isAdShieldActive, false);
+              playerIframe.src = embedUrl;
+            }
+          }
+
+          if (extWatchBtn) {
+            if (streamtapeId) {
+              let extUrl = '';
+              if (streamtapeId.startsWith('gdrive:') || streamtapeId.startsWith('drive:')) {
+                extUrl = `https://drive.google.com/file/d/${streamtapeId.split(':')[1]}/view`;
+              } else if (streamtapeId.startsWith('abyss:') || streamtapeId.startsWith('hydrax:')) {
+                extUrl = `https://playhydrax.com/?v=${streamtapeId.split(':')[1]}`;
+              } else {
+                extUrl = `https://streamtape.com/v/${streamtapeId}`;
+              }
+              extWatchBtn.href = extUrl;
+              extWatchBtn.style.display = 'inline-flex';
+            } else {
+              extWatchBtn.style.display = 'none';
+            }
+          }
+        }
 
         // Update active streaming server name if present
         const activeServerEl = document.getElementById('activeServerName');

@@ -90,6 +90,25 @@
 
   <!-- 2. СЛЕД ТОВА: Видео плейър (Theater Mode) с вграден Ad-Shield -->
   <div class="player-theater-wrapper">
+    {% if is_admin and current_episode and current_episode.is_currently_locked %}
+      <!-- Admin Notice Bar for Locked Episode -->
+      <div class="admin-locked-notice-banner" style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.35); padding: 10px 16px; border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 0.85rem; color: #e9d5ff;">
+          🔒 <strong>Администраторски преглед:</strong> Епизод {{ current_episode.display_code }} е заключен за посетители {% if current_episode.release_date %}(Премиера: {{ current_episode.formatted_release_date }}){% endif %}.
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" id="toggleVisitorPreviewBtn" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 3px 10px;">
+            👁️ Изглед за посетители
+          </button>
+          <form method="POST" action="{{ url_for('admin_toggle_episode_lock', id=current_episode.id) }}" style="display: inline; margin: 0;">
+            <button type="submit" class="btn btn-primary btn-sm" style="font-size: 0.75rem; padding: 3px 10px;">
+              🔓 Отключи сега
+            </button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
     <!-- Ad-Shield & Player Top Controls Bar -->
     <div class="player-top-controls">
       <div class="adshield-badge" id="adShieldBadge">
@@ -107,7 +126,7 @@
         </button>
         {% set ext_watch = ('https://drive.google.com/file/d/' ~ active_streamtape_id.split(':')[1] ~ '/view') if (active_streamtape_id and ('gdrive' in active_streamtape_id or 'drive' in active_streamtape_id)) else (('https://playhydrax.com/?v=' ~ active_streamtape_id.split(':')[1]) if (active_streamtape_id and ('abyss' in active_streamtape_id or 'hydrax' in active_streamtape_id)) else (('https://streamtape.com/v/' ~ active_streamtape_id) if active_streamtape_id else '')) %}
         {% if ext_watch %}
-          <a href="{{ ext_watch }}" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра">
+          <a href="{{ ext_watch }}" id="extWatchBtn" target="_blank" rel="noopener noreferrer" class="player-ctrl-btn" title="Отвори директно в хостинг плейъра" style="{% if is_episode_locked and not is_admin %}display: none;{% endif %}">
             ↗️ Цял екран (Външен)
           </a>
         {% endif %}
@@ -115,11 +134,45 @@
     </div>
 
     <div class="player-aspect-ratio">
+      <!-- 1. COMING SOON OVERLAY (FOR LOCKED EPISODES) -->
+      <div id="playerComingSoon" class="player-coming-soon" style="{% if not (is_episode_locked and not is_admin) %}display: none;{% endif %}">
+        <div class="coming-soon-card">
+          <div class="coming-soon-icon-wrap">
+            <span class="coming-soon-icon">⏳</span>
+          </div>
+          <div class="coming-soon-badge">🔒 ПРЕМИЕРА</div>
+          <h2 class="coming-soon-title" id="csTitle">Очаквайте скоро</h2>
+          <p class="coming-soon-ep" id="csEpisodeTitle">{{ current_episode.display_title if current_episode else '' }}</p>
+
+          <div id="csMessage" class="coming-soon-custom-msg" style="{% if not (current_episode and current_episode.custom_message) %}display: none;{% endif %}">
+            {{ current_episode.custom_message if current_episode else '' }}
+          </div>
+
+          {% set has_rel_date = current_episode and current_episode.release_date %}
+          <div id="csDateWrapper" class="coming-soon-date-box" style="{% if not has_rel_date %}display: none;{% endif %}">
+            <span class="cs-label">📅 Дата на излъчване:</span>
+            <span id="csDateText" class="cs-val">{{ current_episode.formatted_release_date if has_rel_date else '' }}</span>
+          </div>
+
+          <!-- Live countdown timer -->
+          <div id="csCountdownWrapper" style="{% if not has_rel_date %}display: none;{% endif %}">
+            <div class="cs-countdown-timer" id="csCountdown" data-target="{{ current_episode.release_date_iso if has_rel_date else '' }}">
+              <div class="cd-box"><span class="cd-num" id="cdDays">00</span><span class="cd-label">Дни</span></div>
+              <div class="cd-box"><span class="cd-num" id="cdHours">00</span><span class="cd-label">Часа</span></div>
+              <div class="cd-box"><span class="cd-num" id="cdMinutes">00</span><span class="cd-label">Мин</span></div>
+              <div class="cd-box"><span class="cd-num" id="cdSeconds">00</span><span class="cd-label">Сек</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. IFRAME VIDEO PLAYER (FOR ACTIVE / UNLOCKED EPISODES OR ADMIN PREVIEW) -->
       {% if active_embed_url or active_streamtape_id %}
         <iframe 
           id="playerIframe"
           class="player-iframe"
-          src="{{ active_embed_url if active_embed_url else 'https://streamtape.com/e/' ~ active_streamtape_id ~ '/' }}" 
+          style="{% if is_episode_locked and not is_admin %}display: none;{% endif %}"
+          src="{{ active_embed_url if (active_embed_url and (not is_episode_locked or is_admin)) else '' }}" 
           width="100%" 
           height="100%" 
           frameborder="0" 
@@ -130,7 +183,7 @@
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
         ></iframe>
       {% else %}
-        <div class="player-unavailable">
+        <div class="player-unavailable" id="playerUnavailableBox" style="{% if is_episode_locked %}display: none;{% endif %}">
           <div class="player-unavailable-icon">⚠️</div>
           <h3 style="font-size: 1.4rem; margin-bottom: 8px;">Видеото не е налично</h3>
           <p style="color: var(--text-muted); max-width: 480px; margin-bottom: 20px;">
@@ -189,18 +242,27 @@
           {% for ep in item.episodes %}
             <button 
               type="button"
-              class="episode-btn {% if current_episode and current_episode.id == ep.id %}active{% endif %}"
+              class="episode-btn {% if current_episode and current_episode.id == ep.id %}active{% endif %} {% if ep.is_currently_locked %}locked-ep-btn{% endif %}"
               data-season="{{ ep.season_num }}"
               data-episode-id="{{ ep.id }}"
-              data-streamtape-id="{{ ep.streamtape_id }}"
-              data-embed-url="{{ ep.embed_url }}"
+              data-streamtape-id="{{ ep.streamtape_id if not ep.is_currently_locked or is_admin else '' }}"
+              data-embed-url="{{ ep.embed_url if not ep.is_currently_locked or is_admin else '' }}"
               data-server-name="{{ ep.server_name }}"
               data-episode-title="{{ ep.display_title }}"
+              data-is-locked="{{ 'true' if ep.is_currently_locked else 'false' }}"
+              data-release-date="{{ ep.formatted_release_date or '' }}"
+              data-release-iso="{{ ep.release_date_iso or '' }}"
+              data-custom-msg="{{ ep.custom_message or '' }}"
               style="{% if current_episode and ep.season_num != current_episode.season_num and item.seasons_dict|length > 1 %}display: none;{% endif %}"
             >
-              <div class="episode-btn-icon">▶</div>
+              <div class="episode-btn-icon">{% if ep.is_currently_locked %}🔒{% else %}▶{% endif %}</div>
               <div class="episode-btn-info">
-                <div class="episode-btn-num">{{ ep.display_code }}</div>
+                <div class="episode-btn-num">
+                  {{ ep.display_code }}
+                  {% if ep.is_currently_locked %}
+                    <span style="font-size: 0.65rem; color: #f87171; margin-left: 4px;">[Очаквайте]</span>
+                  {% endif %}
+                </div>
                 <div class="episode-btn-title" title="{{ ep.title if ep.title else ep.display_code }}">
                   {{ ep.title if ep.title else 'Епизод ' ~ ep.episode_num }}
                 </div>
