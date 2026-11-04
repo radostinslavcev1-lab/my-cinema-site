@@ -10,6 +10,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from sqlalchemy import inspect, text
 
 from database import db
 from models import MediaItem, Episode, SiteSetting
@@ -77,6 +78,10 @@ def is_site_locked() -> bool:
     try:
         return SiteSetting.get('site_locked', '0') == '1'
     except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         return False
 
 
@@ -88,6 +93,10 @@ def get_maintenance_message() -> str:
             'Сайтът временно е недостъпен поради техническо обновяване. Моля, заповядайте отново по-късно.'
         )
     except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         return 'Сайтът временно е недостъпен.'
 
 
@@ -135,6 +144,10 @@ def inject_global_data():
                         genre_set.add(cleaned)
         genres_list = sorted(list(genre_set))
     except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         genres_list = []
 
     return {
@@ -151,7 +164,14 @@ def inject_global_data():
 @app.before_request
 def check_site_maintenance():
     """Blocks unauthenticated visitors with a 503 maintenance page when site is locked."""
-    ensure_db_ready()
+    try:
+        ensure_db_ready()
+    except Exception as e:
+        app.logger.warning(f"ensure_db_ready notice in before_request: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
     # Always permit static assets, login and logout endpoints
     if request.path.startswith('/static/') or request.endpoint in ('static', 'login', 'logout'):
@@ -161,9 +181,18 @@ def check_site_maintenance():
     if session.get('is_admin'):
         return None
 
-    if is_site_locked():
-        msg = get_maintenance_message()
-        return render_template('maintenance.html', message=msg), 503
+    try:
+        if is_site_locked():
+            msg = get_maintenance_message()
+            return render_template('maintenance.html', message=msg), 503
+    except Exception as e:
+        app.logger.warning(f"Maintenance check notice: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+    return None
 
 
 # ==========================================
@@ -999,6 +1028,22 @@ def request_entity_too_large(e):
     return redirect(request.referrer or url_for('admin_dashboard')), 413
 
 
+@app.errorhandler(500)
+def internal_server_error(e):
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+    app.logger.error(f"Internal Server Error (500): {e}", exc_info=True)
+    return render_template(
+        'base.html',
+        not_found=True,
+        error_code="500",
+        error_title="Възникна временна грешка",
+        error_message="В момента се извършва обновяване на базата данни. Моля, опреснете страницата след секунда."
+    ), 500
+
+
 # ==========================================
 # STREAMTAPE DIRECT BROWSER UPLOAD API
 # ==========================================
@@ -1073,56 +1118,103 @@ def api_abyss_upload_proxy():
 
 
 # ==========================================
-# DATABASE INITIALIZATION HELPER
+# DATABASE INITIALIZATION & MIGRATION HELPER
 # ==========================================
 
+def ensure_db_ready():
+    """
+    Ensures database tables and newly introduced columns exist safely
+    across both PostgreSQL (production) and SQLite (development).
+    """
+    if getattr(app, '_db_initialized', False):
+        return
+
+    try:
+        # 1. Create all missing tables first (e.g., site_settings)
+        db.create_all()
+
+        is_postgres = False
+        try:
+            is_postgres = db.engine.url.drivername.startswith('postgres')
+        except Exception:
+            pass
+
+        if is_postgres:
+            # PostgreSQL natively supports ADD COLUMN IF NOT EXISTS without throwing DuplicateColumn
+            migrations = [
+                "ALTER TABLE media_items ADD COLUMN IF NOT EXISTS backdrop_url VARCHAR(500)",
+                "ALTER TABLE media_items ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE episodes ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE episodes ADD COLUMN IF NOT EXISTS release_date TIMESTAMP NULL",
+                "ALTER TABLE episodes ADD COLUMN IF NOT EXISTS custom_message VARCHAR(255) NULL"
+            ]
+            for stmt in migrations:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(stmt))
+                except Exception as ex:
+                    app.logger.warning(f"PostgreSQL migration notice for '{stmt}': {ex}")
+        else:
+            # SQLite inspection-based migration
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+
+            if 'media_items' in tables:
+                media_cols = {c['name'].lower() for c in inspector.get_columns('media_items')}
+                if 'backdrop_url' not in media_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE media_items ADD COLUMN backdrop_url VARCHAR(500)"))
+                    except Exception:
+                        pass
+                if 'is_featured' not in media_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE media_items ADD COLUMN is_featured BOOLEAN DEFAULT FALSE"))
+                    except Exception:
+                        pass
+
+            if 'episodes' in tables:
+                ep_cols = {c['name'].lower() for c in inspector.get_columns('episodes')}
+                if 'is_locked' not in ep_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE episodes ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
+                    except Exception:
+                        pass
+                if 'release_date' not in ep_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE episodes ADD COLUMN release_date TIMESTAMP NULL"))
+                    except Exception:
+                        pass
+                if 'custom_message' not in ep_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text("ALTER TABLE episodes ADD COLUMN custom_message VARCHAR(255) NULL"))
+                    except Exception:
+                        pass
+
+        app._db_initialized = True
+    except Exception as e:
+        app.logger.error(f"ensure_db_ready encountered error: {e}", exc_info=True)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def create_tables():
-    """Creates database tables safely if they do not exist."""
+    """Initializes tables and migrations on application boot."""
     try:
         with app.app_context():
-            db.create_all()
+            ensure_db_ready()
     except Exception as e:
-        app.logger.warning(f"Database initialization warning: {e}")
+        app.logger.warning(f"Startup DB init warning: {e}")
 
 
-# Create tables safely on startup
+# Initialize database safely on startup
 create_tables()
-
-
-def ensure_db_ready():
-    """Ensure database connection is ready on first request and new columns exist."""
-    if not getattr(app, '_db_initialized', False):
-        try:
-            db.create_all()
-            with db.engine.connect() as conn:
-                try:
-                    conn.execute(db.text("ALTER TABLE media_items ADD COLUMN backdrop_url VARCHAR(500)"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(db.text("ALTER TABLE media_items ADD COLUMN is_featured BOOLEAN DEFAULT FALSE"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN is_locked BOOLEAN DEFAULT FALSE"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN release_date TIMESTAMP NULL"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(db.text("ALTER TABLE episodes ADD COLUMN custom_message VARCHAR(255) NULL"))
-                    conn.commit()
-                except Exception:
-                    pass
-            app._db_initialized = True
-        except Exception as e:
-            app.logger.warning(f"DB ensure warning: {e}")
 
 
 if __name__ == '__main__':

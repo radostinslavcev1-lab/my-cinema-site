@@ -216,25 +216,34 @@ class Episode(db.Model):
         Returns True if episode is locked and release_date is either unset or in the future.
         If release_date has arrived/passed, it automatically unlocks for visitors.
         """
-        if not self.is_locked:
+        if not getattr(self, 'is_locked', False):
             return False
-        if self.release_date and datetime.utcnow() >= self.release_date:
+        rel_date = getattr(self, 'release_date', None)
+        if rel_date and datetime.utcnow() >= rel_date:
             return False
         return True
 
     @property
     def formatted_release_date(self):
         """Returns release date formatted in Bulgarian (DD.MM.YYYY г., HH:MM ч.)."""
-        if not self.release_date:
+        rel_date = getattr(self, 'release_date', None)
+        if not rel_date:
             return None
-        return self.release_date.strftime("%d.%m.%Y г., %H:%M ч.")
+        try:
+            return rel_date.strftime("%d.%m.%Y г., %H:%M ч.")
+        except Exception:
+            return str(rel_date)
 
     @property
     def release_date_iso(self):
         """Returns ISO string for JavaScript countdown timer."""
-        if not self.release_date:
+        rel_date = getattr(self, 'release_date', None)
+        if not rel_date:
             return None
-        return self.release_date.strftime("%Y-%m-%dT%H:%M:%S")
+        try:
+            return rel_date.strftime("%Y-%m-%dT%H:%M:%S")
+        except Exception:
+            return None
 
     @property
     def embed_url(self):
@@ -266,12 +275,12 @@ class Episode(db.Model):
             'display_title': self.display_title,
             'streamtape_id': self.streamtape_id,
             'embed_url': self.embed_url,
-            'is_locked': self.is_locked,
+            'is_locked': getattr(self, 'is_locked', False),
             'is_currently_locked': self.is_currently_locked,
             'release_date': self.formatted_release_date,
             'release_date_iso': self.release_date_iso,
-            'custom_message': self.custom_message,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else None
+            'custom_message': getattr(self, 'custom_message', None),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if getattr(self, 'created_at', None) else None
         }
 
     def __repr__(self):
@@ -294,6 +303,10 @@ class SiteSetting(db.Model):
             item = cls.query.filter_by(key=key).first()
             return item.value if item and item.value is not None else default
         except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             return default
 
     @classmethod
@@ -307,6 +320,9 @@ class SiteSetting(db.Model):
                 item.value = value
             db.session.commit()
         except Exception as e:
-            db.session.rollback()
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             raise e
 

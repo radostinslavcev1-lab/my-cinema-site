@@ -116,9 +116,9 @@
   <main style="flex: 1;">
     {% if not_found %}
       <div class="container" style="padding: 100px 24px; text-align: center;">
-        <h1 style="font-size: 5rem; color: var(--accent-red); margin-bottom: 10px;">404</h1>
-        <h2 style="margin-bottom: 20px;">Страницата не е намерена</h2>
-        <p style="color: var(--text-muted); margin-bottom: 30px;">Заглавието или страницата, която търсите, не съществува или е била преместена.</p>
+        <h1 style="font-size: 5rem; color: var(--accent-red); margin-bottom: 10px;">{{ error_code|default('404') }}</h1>
+        <h2 style="margin-bottom: 20px;">{{ error_title|default('Страницата не е намерена') }}</h2>
+        <p style="color: var(--text-muted); margin-bottom: 30px;">{{ error_message|default('Заглавието или страницата, която търсите, не съществува или е била преместена.') }}</p>
         <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">Към началната страница</a>
       </div>
     {% else %}
