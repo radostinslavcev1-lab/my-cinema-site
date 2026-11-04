@@ -1062,13 +1062,39 @@ def internal_server_error(e):
     except Exception:
         pass
     app.logger.error(f"Internal Server Error (500): {e}", exc_info=True)
-    return render_template(
-        'base.html',
-        not_found=True,
-        error_code="500",
-        error_title="Възникна временна грешка",
-        error_message="В момента се извършва обновяване на базата данни. Моля, опреснете страницата след секунда."
-    ), 500
+    try:
+        return render_template(
+            'base.html',
+            not_found=True,
+            error_code="500",
+            error_title="Възникна временна грешка",
+            error_message="В момента се извършва обновяване на базата данни. Моля, опреснете страницата след секунда."
+        ), 500
+    except Exception:
+        return """<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Временно обновяване - CINEMAX</title>
+  <style>
+    body { background: #0a0b0e; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 20px; }
+    .card { background: rgba(22, 25, 36, 0.95); border: 1px solid rgba(229, 9, 20, 0.35); border-radius: 20px; padding: 40px 24px; max-width: 480px; width: 100%; box-shadow: 0 16px 45px rgba(0,0,0,0.8); }
+    h1 { color: #e50914; margin-bottom: 12px; font-size: 1.6rem; }
+    p { color: #9aa0a6; line-height: 1.5; font-size: 0.95rem; margin-bottom: 24px; }
+    a { display: inline-block; background: #e50914; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 9999px; font-weight: 700; transition: transform 0.2s; }
+    a:hover { transform: scale(1.04); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size: 40px; margin-bottom: 12px;">🎬</div>
+    <h1>Временно обновяване</h1>
+    <p>Сървърът в момента синхронизира данните от новия ъпдейт. Моля, изчакайте няколко секунди и опреснете страницата.</p>
+    <a href="javascript:location.reload()">🔄 Опресни страницата</a>
+  </div>
+</body>
+</html>""", 500
 
 
 # ==========================================

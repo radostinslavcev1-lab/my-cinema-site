@@ -209,10 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const playerComingSoon = document.getElementById('playerComingSoon');
       const extWatchBtn = document.getElementById('extWatchBtn');
 
+      const ratioBox = document.querySelector('.player-aspect-ratio');
       if (isVisitorPreviewActive) {
         if (playerIframe) playerIframe.style.display = 'none';
         if (playerComingSoon) playerComingSoon.style.display = 'flex';
         if (extWatchBtn) extWatchBtn.style.display = 'none';
+        if (ratioBox) ratioBox.classList.add('has-coming-soon');
         toggleVisitorPreviewBtn.textContent = '👁️ Обратно към админ плейър';
         toggleVisitorPreviewBtn.classList.add('btn-primary');
         toggleVisitorPreviewBtn.classList.remove('btn-secondary');
@@ -220,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playerIframe) playerIframe.style.display = 'block';
         if (playerComingSoon) playerComingSoon.style.display = 'none';
         if (extWatchBtn) extWatchBtn.style.display = 'inline-flex';
+        if (ratioBox) ratioBox.classList.remove('has-coming-soon');
         toggleVisitorPreviewBtn.textContent = '👁️ Изглед за посетители';
         toggleVisitorPreviewBtn.classList.remove('btn-primary');
         toggleVisitorPreviewBtn.classList.add('btn-secondary');
@@ -259,7 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if current user is admin
         const isAdmin = document.body.dataset.isAdmin === '1';
 
+        const ratioBox = document.querySelector('.player-aspect-ratio');
         if (isLocked && (!isAdmin || isVisitorPreviewActive)) {
+          if (ratioBox) ratioBox.classList.add('has-coming-soon');
           // Locked episode for visitors: Completely suppress player & show Coming Soon overlay
           if (playerIframe) {
             playerIframe.style.display = 'none';
@@ -314,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             extWatchBtn.href = '#';
           }
         } else {
+          if (ratioBox) ratioBox.classList.remove('has-coming-soon');
           // Unlocked episode or Admin Preview mode
           if (playerComingSoon) playerComingSoon.style.display = 'none';
           if (playerIframe) {

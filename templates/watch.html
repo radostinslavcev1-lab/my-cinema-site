@@ -137,7 +137,7 @@
       </div>
     </div>
 
-    <div class="player-aspect-ratio">
+    <div class="player-aspect-ratio {% if is_episode_locked and not is_admin %}has-coming-soon{% endif %}">
       <!-- 1. COMING SOON OVERLAY (FOR LOCKED EPISODES) -->
       <div id="playerComingSoon" class="player-coming-soon" style="{% if not (is_episode_locked and not is_admin) %}display: none;{% endif %}">
         <div class="coming-soon-card">
