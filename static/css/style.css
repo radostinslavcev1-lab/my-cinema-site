@@ -2500,21 +2500,30 @@ img {
   -webkit-user-drag: none;
 }
 
-/* Protective Player Shield Cover (blackout on blur/record attempt) */
+/* Protective Player Shield Cover (blackout on blur/record attempt - HBO Max style) */
 .player-shield-cover {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: #000000;
-  z-index: 10;
+  background: #000000 !important;
+  z-index: 99999 !important;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 24px;
-  animation: shieldFadeIn 0.2s ease;
+  animation: shieldFadeIn 0.15s ease;
+}
+
+/* Force video frame to pure black whenever capture or recording is suspected */
+iframe.drm-blackout,
+.player-aspect-ratio.drm-blackout iframe {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  filter: brightness(0) contrast(0) blur(20px) !important;
+  background: #000000 !important;
 }
 
 .shield-cover-content {

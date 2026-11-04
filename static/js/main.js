@@ -1038,42 +1038,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 8. ANTI-SCREENSHOT & ANTI-SCREEN-RECORDING SECURITY SHIELD
+  // 8. ANTI-SCREENSHOT & ANTI-SCREEN-RECORDING SECURITY SHIELD (HBO MAX STYLE)
   // ========================================================
   const shieldModal = document.getElementById('screenShieldModal');
   const shieldCloseXBtn = document.getElementById('shieldCloseXBtn');
   const shieldAcceptBtn = document.getElementById('shieldAcceptBtn');
 
-  function triggerSecurityLockdown(reason, forceRedirect = false) {
+  /**
+   * Instantly forces the video player into pitch black (DRM Black Screen),
+   * identical to HBO Max and Netflix hardware protection pipelines.
+   */
+  function applyInstantBlackout() {
     const iframe = document.getElementById('playerIframe');
     const cover = document.getElementById('playerShieldCover');
+    const ratioBox = document.querySelector('.player-aspect-ratio');
 
-    // 1. Immediately halt video audio & stream
+    if (cover) {
+      cover.style.display = 'flex';
+    }
+    if (ratioBox) {
+      ratioBox.classList.add('drm-blackout');
+    }
     if (iframe) {
+      iframe.classList.add('drm-blackout');
       if (iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank')) {
         iframe.dataset.savedSrc = iframe.src;
       }
+    }
+  }
+
+  /**
+   * Halts playback, blackens frame, increments violation tracking,
+   * and presents the user notice modal with close [X].
+   */
+  function triggerSecurityLockdown(reason, forceRedirect = false) {
+    applyInstantBlackout();
+
+    const iframe = document.getElementById('playerIframe');
+    if (iframe) {
       iframe.src = 'about:blank';
       iframe.style.display = 'none';
     }
 
-    // 2. Black out video frame
-    if (cover) {
-      cover.style.display = 'flex';
-    }
-
-    // 3. Track violation attempts in session
+    // Track violations in current session
     let count = parseInt(sessionStorage.getItem('shield_violations') || '0', 10) + 1;
     sessionStorage.setItem('shield_violations', count);
 
-    // 4. If repeated violations (3 or more) -> forcefully redirect to homepage with blocked notice
+    // If 3 consecutive violations occurred -> redirect to homepage
     if (count >= 3 || forceRedirect) {
       if (shieldModal) {
         shieldModal.style.display = 'flex';
         shieldModal.setAttribute('aria-hidden', 'false');
         const descEl = shieldModal.querySelector('.shield-modal-desc');
         if (descEl) {
-          descEl.innerHTML = '<strong style="color: #f87171;">МНОГОКРАТНО НАРУШЕНИЕ:</strong> Засичане на софтуер за запис. Пренасочване към началната страница...';
+          descEl.innerHTML = '<strong style="color: #f87171;">МНОГОКРАТНО НАРУШЕНИЕ:</strong> Засичане на софтуер за запис. Пренасочване към началния екран...';
         }
       }
       setTimeout(() => {
@@ -1082,13 +1100,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // 5. Show protective security modal for first/second offenses
+    // Display user warning modal with [X]
     if (shieldModal) {
       shieldModal.style.display = 'flex';
       shieldModal.setAttribute('aria-hidden', 'false');
     }
   }
 
+  /**
+   * Closes the security notice, dismisses the blackout, and restores
+   * normal video playback seamlessly.
+   */
   function dismissSecurityLockdown() {
     if (shieldModal) {
       shieldModal.style.display = 'none';
@@ -1096,13 +1118,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const cover = document.getElementById('playerShieldCover');
-    if (cover) {
-      cover.style.display = 'none';
-    }
-
-    // Restore video player
+    const ratioBox = document.querySelector('.player-aspect-ratio');
     const iframe = document.getElementById('playerIframe');
+
+    if (cover) cover.style.display = 'none';
+    if (ratioBox) ratioBox.classList.remove('drm-blackout');
     if (iframe) {
+      iframe.classList.remove('drm-blackout');
       iframe.style.display = 'block';
       if (iframe.dataset.savedSrc) {
         iframe.src = iframe.dataset.savedSrc;
@@ -1118,16 +1140,64 @@ document.addEventListener('DOMContentLoaded', () => {
     shieldAcceptBtn.addEventListener('click', dismissSecurityLockdown);
   }
 
-  // A. Intercept browser screen recording API (getDisplayMedia)
+  // A. Continuous Background Scanner (every 300ms) - Detects window capture, OBS, Game Bar
+  let blurTickCount = 0;
+  setInterval(() => {
+    const iframe = document.getElementById('playerIframe');
+    const cover = document.getElementById('playerShieldCover');
+    const modal = document.getElementById('screenShieldModal');
+    const ratioBox = document.querySelector('.player-aspect-ratio');
+
+    if (!iframe) return;
+
+    // Check if player is active with a stream
+    const isPlaying = (iframe.dataset.savedSrc || (iframe.src && iframe.src !== 'about:blank' && iframe.style.display !== 'none'));
+    if (!isPlaying) return;
+
+    // If window lost focus while watching (e.g. Snipping Tool overlay opened or external capture window active)
+    if (!document.hasFocus()) {
+      blurTickCount++;
+      // Instantly blackout video area so any recording captures 100% black
+      if (cover && cover.style.display !== 'flex') {
+        cover.style.display = 'flex';
+      }
+      if (ratioBox) ratioBox.classList.add('drm-blackout');
+      if (iframe) iframe.classList.add('drm-blackout');
+
+      // If focus remains lost for over 1.2s, pause stream and display the warning modal
+      if (blurTickCount === 4 && modal && modal.style.display === 'none') {
+        triggerSecurityLockdown('Засечена външна програма за заснемане на екрана или загуба на фокус.');
+      }
+    } else {
+      blurTickCount = 0;
+      // Normal focus: if modal is not open, remove blackout
+      if (modal && modal.style.display === 'none') {
+        if (cover && cover.style.display === 'flex') {
+          cover.style.display = 'none';
+        }
+        if (ratioBox) ratioBox.classList.remove('drm-blackout');
+        if (iframe) iframe.classList.remove('drm-blackout');
+      }
+    }
+
+    // Monitor for developer inspection undocking
+    const widthDiff = window.outerWidth - window.innerWidth > 160;
+    const heightDiff = window.outerHeight - window.innerHeight > 160;
+    if (widthDiff || heightDiff) {
+      if (cover) cover.style.display = 'flex';
+    }
+  }, 300);
+
+  // B. Intercept browser screen recording API (getDisplayMedia)
   if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
     const origGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getDisplayMedia = function(...args) {
-      triggerSecurityLockdown('Браузърно разширение или програма опита да запише екрана!');
+      triggerSecurityLockdown('Браузърно разширение или програма опита да запише екрана чрез getDisplayMedia!');
       return Promise.reject(new DOMException('Записът на екрана е забранен!', 'NotAllowedError'));
     };
   }
 
-  // B. Keyboard Screenshot & Snipping Tool interception
+  // C. Keyboard Screenshot & Snipping Tool interception with Microsecond Blackout
   window.addEventListener('keydown', (e) => {
     const key = e.key || '';
     const code = e.code || '';
@@ -1138,6 +1208,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const isSave = (e.ctrlKey || e.metaKey) && (key.toLowerCase() === 's' || code === 'KeyS') && !e.shiftKey;
 
     if (isPrtScn || isWinSnipping || isMacCapture || isPrint) {
+      // 1. Instant blackout in current synchronous execution frame
+      applyInstantBlackout();
+
       e.preventDefault();
       e.stopPropagation();
 
@@ -1148,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {}
 
-      triggerSecurityLockdown('Засечен опит за скрийншот или запис на екрана!');
+      triggerSecurityLockdown('Засечен клавишен опит за скрийншот или запис на екрана!');
       return false;
     }
 
@@ -1161,6 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Catch PrintScreen keyup event
   window.addEventListener('keyup', (e) => {
     if (e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44) {
+      applyInstantBlackout();
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText('⚠️ Записът и скрийншотването на съдържание от CINEMAX са абсолютно забранени!');
@@ -1170,26 +1244,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, true);
 
-  // C. Window blur & recording overlay detection
+  // D. Window blur & recording overlay detection
   window.addEventListener('blur', () => {
-    const iframe = document.getElementById('playerIframe');
-    const cover = document.getElementById('playerShieldCover');
-    // When focus is lost while video is playing (e.g. Snipping Tool overlay, Game Bar, OBS window active)
-    if (iframe && iframe.style.display !== 'none' && iframe.src && iframe.src !== 'about:blank' && cover) {
-      cover.style.display = 'flex';
-    }
+    applyInstantBlackout();
   });
 
   window.addEventListener('focus', () => {
     const modal = document.getElementById('screenShieldModal');
     const cover = document.getElementById('playerShieldCover');
-    // Restore only if warning modal is NOT open
-    if (modal && modal.style.display === 'none' && cover) {
-      cover.style.display = 'none';
+    const ratioBox = document.querySelector('.player-aspect-ratio');
+    const iframe = document.getElementById('playerIframe');
+
+    // Only restore if warning modal is NOT active
+    if (modal && modal.style.display === 'none') {
+      if (cover) cover.style.display = 'none';
+      if (ratioBox) ratioBox.classList.remove('drm-blackout');
+      if (iframe) iframe.classList.remove('drm-blackout');
     }
   });
 
-  // D. Disable right-click context menu on player and posters
+  // E. Disable right-click context menu on player and posters
   document.addEventListener('contextmenu', (e) => {
     if (e.target.closest('.player-theater-wrapper') || e.target.closest('.watch-poster-side') || e.target.closest('.media-card') || e.target.tagName === 'IMG') {
       e.preventDefault();
@@ -1197,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // E. Dynamic floating watermark (moves every 8 seconds)
+  // F. Dynamic floating watermark (moves every 8 seconds)
   const watermark = document.getElementById('playerWatermark');
   if (watermark) {
     const positions = [
