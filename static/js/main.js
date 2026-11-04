@@ -1038,27 +1038,183 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ========================================================
-  // 7. COPY SHARE LINK BUTTON
+  // 8. ANTI-SCREENSHOT & ANTI-SCREEN-RECORDING SECURITY SHIELD
   // ========================================================
-  const shareBtn = document.getElementById('shareLinkBtn');
-  if (shareBtn) {
-    shareBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(window.location.href);
-        const originalText = shareBtn.innerHTML;
-        shareBtn.innerHTML = '✓ Линкът е копиран!';
-        shareBtn.classList.remove('btn-secondary');
-        shareBtn.classList.add('btn-primary');
+  const shieldModal = document.getElementById('screenShieldModal');
+  const shieldCloseXBtn = document.getElementById('shieldCloseXBtn');
+  const shieldAcceptBtn = document.getElementById('shieldAcceptBtn');
 
-        setTimeout(() => {
-          shareBtn.innerHTML = originalText;
-          shareBtn.classList.remove('btn-primary');
-          shareBtn.classList.add('btn-secondary');
-        }, 2500);
-      } catch (err) {
-        prompt('Копирайте линка към видеото:', window.location.href);
+  function triggerSecurityLockdown(reason, forceRedirect = false) {
+    const iframe = document.getElementById('playerIframe');
+    const cover = document.getElementById('playerShieldCover');
+
+    // 1. Immediately halt video audio & stream
+    if (iframe) {
+      if (iframe.src && iframe.src !== 'about:blank' && !iframe.src.endsWith('about:blank')) {
+        iframe.dataset.savedSrc = iframe.src;
       }
-    });
+      iframe.src = 'about:blank';
+      iframe.style.display = 'none';
+    }
+
+    // 2. Black out video frame
+    if (cover) {
+      cover.style.display = 'flex';
+    }
+
+    // 3. Track violation attempts in session
+    let count = parseInt(sessionStorage.getItem('shield_violations') || '0', 10) + 1;
+    sessionStorage.setItem('shield_violations', count);
+
+    // 4. If repeated violations (3 or more) -> forcefully redirect to homepage with blocked notice
+    if (count >= 3 || forceRedirect) {
+      if (shieldModal) {
+        shieldModal.style.display = 'flex';
+        shieldModal.setAttribute('aria-hidden', 'false');
+        const descEl = shieldModal.querySelector('.shield-modal-desc');
+        if (descEl) {
+          descEl.innerHTML = '<strong style="color: #f87171;">МНОГОКРАТНО НАРУШЕНИЕ:</strong> Засичане на софтуер за запис. Пренасочване към началната страница...';
+        }
+      }
+      setTimeout(() => {
+        window.location.href = '/?blocked=recording';
+      }, 1500);
+      return;
+    }
+
+    // 5. Show protective security modal for first/second offenses
+    if (shieldModal) {
+      shieldModal.style.display = 'flex';
+      shieldModal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function dismissSecurityLockdown() {
+    if (shieldModal) {
+      shieldModal.style.display = 'none';
+      shieldModal.setAttribute('aria-hidden', 'true');
+    }
+
+    const cover = document.getElementById('playerShieldCover');
+    if (cover) {
+      cover.style.display = 'none';
+    }
+
+    // Restore video player
+    const iframe = document.getElementById('playerIframe');
+    if (iframe) {
+      iframe.style.display = 'block';
+      if (iframe.dataset.savedSrc) {
+        iframe.src = iframe.dataset.savedSrc;
+      }
+    }
+  }
+
+  // Dismiss listeners (X button and Accept button)
+  if (shieldCloseXBtn) {
+    shieldCloseXBtn.addEventListener('click', dismissSecurityLockdown);
+  }
+  if (shieldAcceptBtn) {
+    shieldAcceptBtn.addEventListener('click', dismissSecurityLockdown);
+  }
+
+  // A. Intercept browser screen recording API (getDisplayMedia)
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+    const origGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = function(...args) {
+      triggerSecurityLockdown('Браузърно разширение или програма опита да запише екрана!');
+      return Promise.reject(new DOMException('Записът на екрана е забранен!', 'NotAllowedError'));
+    };
+  }
+
+  // B. Keyboard Screenshot & Snipping Tool interception
+  window.addEventListener('keydown', (e) => {
+    const key = e.key || '';
+    const code = e.code || '';
+    const isPrtScn = key === 'PrintScreen' || code === 'PrintScreen' || e.keyCode === 44;
+    const isWinSnipping = (e.metaKey || e.ctrlKey) && e.shiftKey && (key.toLowerCase() === 's' || code === 'KeyS');
+    const isMacCapture = e.metaKey && e.shiftKey && ['3', '4', '5'].includes(key);
+    const isPrint = (e.ctrlKey || e.metaKey) && (key.toLowerCase() === 'p' || code === 'KeyP');
+    const isSave = (e.ctrlKey || e.metaKey) && (key.toLowerCase() === 's' || code === 'KeyS') && !e.shiftKey;
+
+    if (isPrtScn || isWinSnipping || isMacCapture || isPrint) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Wipe OS clipboard so no captured frame is pasted
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText('⚠️ Записът и скрийншотването на съдържание от CINEMAX са абсолютно забранени!');
+        }
+      } catch (err) {}
+
+      triggerSecurityLockdown('Засечен опит за скрийншот или запис на екрана!');
+      return false;
+    }
+
+    if (isSave) {
+      e.preventDefault();
+      return false;
+    }
+  }, true);
+
+  // Catch PrintScreen keyup event
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'PrintScreen' || e.code === 'PrintScreen' || e.keyCode === 44) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText('⚠️ Записът и скрийншотването на съдържание от CINEMAX са абсолютно забранени!');
+        }
+      } catch (err) {}
+      triggerSecurityLockdown('Засечен клавиш PrintScreen!');
+    }
+  }, true);
+
+  // C. Window blur & recording overlay detection
+  window.addEventListener('blur', () => {
+    const iframe = document.getElementById('playerIframe');
+    const cover = document.getElementById('playerShieldCover');
+    // When focus is lost while video is playing (e.g. Snipping Tool overlay, Game Bar, OBS window active)
+    if (iframe && iframe.style.display !== 'none' && iframe.src && iframe.src !== 'about:blank' && cover) {
+      cover.style.display = 'flex';
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    const modal = document.getElementById('screenShieldModal');
+    const cover = document.getElementById('playerShieldCover');
+    // Restore only if warning modal is NOT open
+    if (modal && modal.style.display === 'none' && cover) {
+      cover.style.display = 'none';
+    }
+  });
+
+  // D. Disable right-click context menu on player and posters
+  document.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.player-theater-wrapper') || e.target.closest('.watch-poster-side') || e.target.closest('.media-card') || e.target.tagName === 'IMG') {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  // E. Dynamic floating watermark (moves every 8 seconds)
+  const watermark = document.getElementById('playerWatermark');
+  if (watermark) {
+    const positions = [
+      { top: '16px', left: '20px', bottom: 'auto', right: 'auto' },
+      { top: '16px', right: '20px', bottom: 'auto', left: 'auto' },
+      { bottom: '16px', left: '20px', top: 'auto', right: 'auto' },
+      { bottom: '16px', right: '20px', top: 'auto', left: 'auto' }
+    ];
+    let posIdx = 0;
+    setInterval(() => {
+      posIdx = (posIdx + 1) % positions.length;
+      const p = positions[posIdx];
+      watermark.style.top = p.top;
+      watermark.style.bottom = p.bottom;
+      watermark.style.left = p.left;
+      watermark.style.right = p.right;
+    }, 8000);
   }
 
 });

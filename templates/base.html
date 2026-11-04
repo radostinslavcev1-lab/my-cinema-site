@@ -189,6 +189,43 @@
     {% endif %}
   </nav>
 
+  <!-- Anti-Screenshot & Anti-Screen-Recording Security Shield Modal -->
+  <div id="screenShieldModal" class="shield-modal-backdrop" aria-hidden="true" style="display: none;">
+    <div class="shield-modal-dialog">
+      <!-- Close button (Хикс X) -->
+      <button type="button" class="shield-close-btn" id="shieldCloseXBtn" title="Затвори бележката" aria-label="Затвори">✕</button>
+
+      <div class="shield-modal-icon-wrap">
+        <span class="shield-modal-icon">🚫</span>
+      </div>
+
+      <div class="shield-modal-badge">🛡️ ЗАЩИТА НА СЪДЪРЖАНИЕТО</div>
+
+      <h2 class="shield-modal-title">Записът на екрана е забранен!</h2>
+
+      <p class="shield-modal-desc">
+        Скрийншотването (снимки на екрана) и скрийкордването (видео запис) на филми, сериали и съдържание в сайта са <strong>категорично забранени</strong>.
+      </p>
+
+      <div class="shield-modal-alert">
+        <span class="shield-alert-icon">⚠️</span>
+        <div class="shield-alert-text">
+          <strong>Внимание:</strong> Засечен е опит за заснемане или запис на екрана. Видеоплейърът беше временно спрян за защита на авторските права.
+        </div>
+      </div>
+
+      <p class="shield-modal-footnote">
+        Моля, спрете софтуера за запис (OBS, Snipping Tool, Game Bar и др.), за да продължите нормалното възпроизвеждане. При повторен опит ще бъдете пренасочени към началния екран.
+      </p>
+
+      <div class="shield-modal-actions">
+        <button type="button" class="btn btn-primary btn-lg shield-dismiss-btn" id="shieldAcceptBtn">
+          ✓ Разбрах, затвори и продължи
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Vanilla JavaScript -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   {% block extra_js %}{% endblock %}

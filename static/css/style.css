@@ -2477,3 +2477,244 @@ textarea.form-control {
   background: rgba(239, 68, 68, 0.12);
 }
 
+/* ========================================================
+   ANTI-SCREENSHOT & ANTI-RECORDING SHIELD STYLES
+   ======================================================== */
+
+@media print {
+  body {
+    display: none !important;
+  }
+}
+
+/* Prevent text/image dragging & selecting on protected elements */
+.watch-container,
+.player-theater-wrapper,
+.player-aspect-ratio,
+.media-card,
+img {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Protective Player Shield Cover (blackout on blur/record attempt) */
+.player-shield-cover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000000;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  animation: shieldFadeIn 0.2s ease;
+}
+
+.shield-cover-content {
+  max-width: 440px;
+  color: #ffffff;
+}
+
+.shield-cover-icon {
+  font-size: 44px;
+  margin-bottom: 12px;
+}
+
+.shield-cover-content h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent-red);
+  margin-bottom: 8px;
+}
+
+.shield-cover-content p {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Floating dynamic watermark */
+.player-watermark {
+  position: absolute;
+  bottom: 16px;
+  right: 20px;
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0.35;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  user-select: none;
+  transition: all 1.5s ease;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Shield Warning Modal Backdrop */
+.shield-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 6, 8, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: shieldFadeIn 0.25s ease;
+}
+
+@keyframes shieldFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.shield-modal-dialog {
+  max-width: 520px;
+  width: 100%;
+  background: linear-gradient(145deg, #181b26 0%, #0d0f16 100%);
+  border: 2px solid rgba(239, 68, 68, 0.45);
+  border-radius: var(--radius-lg);
+  padding: 38px 30px 28px;
+  text-align: center;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 50px rgba(229, 9, 20, 0.35);
+  position: relative;
+  animation: shieldPopUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes shieldPopUp {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* Close button (Хикс X) */
+.shield-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.shield-close-btn:hover {
+  background: #e50914;
+  border-color: #e50914;
+  color: #ffffff;
+  transform: rotate(90deg) scale(1.1);
+  box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+}
+
+.shield-modal-icon-wrap {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  background: rgba(229, 9, 20, 0.15);
+  border: 2px solid rgba(229, 9, 20, 0.45);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  box-shadow: 0 0 30px rgba(229, 9, 20, 0.35);
+  animation: pulseShield 2s infinite ease-in-out;
+}
+
+@keyframes pulseShield {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); box-shadow: 0 0 45px rgba(229, 9, 20, 0.6); }
+}
+
+.shield-modal-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  background: rgba(229, 9, 20, 0.2);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  border-radius: 9999px;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.shield-modal-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 12px;
+  line-height: 1.25;
+}
+
+.shield-modal-desc {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+  margin-bottom: 18px;
+}
+
+.shield-modal-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(229, 9, 20, 0.12);
+  border: 1px solid rgba(229, 9, 20, 0.3);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: left;
+  margin-bottom: 16px;
+  font-size: 0.88rem;
+  color: #fca5a5;
+  line-height: 1.45;
+}
+
+.shield-alert-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.shield-modal-footnote {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 22px;
+}
+
+.shield-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.shield-dismiss-btn {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
